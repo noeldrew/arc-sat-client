@@ -13,6 +13,7 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 if (started) app.quit();
 
 let core: SatelliteCore | undefined;
+const headless = process.argv.includes("--headless");
 let latestStatus: SatelliteStatus = { cloud: "stopped", localTransport: "stopped", localAppConnected: false };
 
 const sendToRenderers = (channel: string, payload: unknown): void => {
@@ -52,10 +53,13 @@ const startCore = async (): Promise<void> => {
   core.events.on("activity", (entry: ActivityEntry) => { sendToRenderers("satellite:activity", entry); void diagnostics.append(entry); });
   core.events.on("config", (next) => sendToRenderers("satellite:config", next));
   core.events.on("system-stats", (stats) => sendToRenderers("satellite:system-stats", stats));
+  core.launcher.on("scheduled", (details) => sendToRenderers("satellite:launch-scheduled", details));
+  core.launcher.on("cancelled", () => sendToRenderers("satellite:launch-cancelled", true));
   ipcMain.handle("satellite:get-status", () => latestStatus);
   ipcMain.handle("satellite:get-config", () => core?.getConfig());
   ipcMain.handle("satellite:get-branding", () => new BrandingService(path.join(app.getPath("userData"), "branding-cache.json")).load(core!.getConfig().serverUrl));
   ipcMain.handle("satellite:launch-app", () => core?.launcher.launch("manual") ?? false);
+  ipcMain.handle("satellite:cancel-launch", () => core?.launcher.cancelScheduled() ?? false);
   ipcMain.handle("satellite:get-system-stats", () => core?.monitor.getSnapshot());
   ipcMain.handle("satellite:export-diagnostics", async () => {
     const result = await dialog.showSaveDialog({ title: "Export ARC Satellite Diagnostics", defaultPath: `arc-satellite-diagnostics-${new Date().toISOString().slice(0, 10)}.json`, filters: [{ name: "JSON", extensions: ["json"] }] });
@@ -83,7 +87,7 @@ if (!hasLock) {
   });
   app.whenReady().then(async () => {
     await startCore();
-    await createWindow();
+    if (!headless) await createWindow();
   });
 }
 

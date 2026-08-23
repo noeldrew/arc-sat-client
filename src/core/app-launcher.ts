@@ -7,15 +7,19 @@ import { SatelliteEvents } from "./events";
 export class AppLauncher extends EventEmitter {
   private child?: ChildProcess;
   private lastLaunchAt = 0;
+  private pending?: NodeJS.Timeout;
 
   constructor(private getConfig: () => SatelliteConfig, private readonly events: SatelliteEvents) { super(); }
 
   schedule(reason: "cloud-connect" | "session" | "process-stopped"): void {
+    if (this.pending) clearTimeout(this.pending);
     const delay = this.getConfig().launcher.delaySeconds;
     this.events.log("system", { type: "app-launch-scheduled", reason, delaySeconds: delay });
     this.emit("scheduled", { reason, delaySeconds: delay });
-    setTimeout(() => this.launch(reason), delay * 1_000);
+    this.pending = setTimeout(() => { this.pending = undefined; this.launch(reason); }, delay * 1_000);
   }
+
+  cancelScheduled(): boolean { if (!this.pending) return false; clearTimeout(this.pending); this.pending = undefined; this.events.log("system", { type: "app-launch-cancelled" }); this.emit("cancelled"); return true; }
 
   launch(reason: "manual" | "cloud-connect" | "session" | "process-stopped" = "manual"): boolean {
     const config = this.getConfig().launcher;

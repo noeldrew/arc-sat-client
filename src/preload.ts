@@ -14,10 +14,13 @@ contextBridge.exposeInMainWorld("arcSatellite", {
   getBranding: () => ipcRenderer.invoke("satellite:get-branding"),
   getSystemStats: () => ipcRenderer.invoke("satellite:get-system-stats"),
   launchApp: () => ipcRenderer.invoke("satellite:launch-app"),
+  cancelLaunch: () => ipcRenderer.invoke("satellite:cancel-launch"),
   exportDiagnostics: () => ipcRenderer.invoke("satellite:export-diagnostics"),
   updateConfig: (config: unknown) => ipcRenderer.invoke("satellite:update-config", config),
   onStatus: (listener: (value: unknown) => void) => subscribe("satellite:status", listener),
   onActivity: (listener: (value: unknown) => void) => subscribe("satellite:activity", listener),
   onConfig: (listener: (value: unknown) => void) => subscribe("satellite:config", listener),
   onSystemStats: (listener: (value: unknown) => void) => subscribe("satellite:system-stats", listener),
+  onLaunchScheduled: (listener: (value: unknown) => void) => subscribe("satellite:launch-scheduled", listener),
+  onLaunchCancelled: (listener: (value: unknown) => void) => subscribe("satellite:launch-cancelled", listener),
 });
