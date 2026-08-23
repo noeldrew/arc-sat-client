@@ -1,0 +1,43 @@
+{
+  "name": "arc-satellite-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ARC Satellite desktop client",
+  "main": ".vite/build/main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "electron-forge start",
+    "build": "vite build",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "electron-squirrel-startup": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "systeminformation": "^5.27.11",
+    "ws": "^8.18.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "latest",
+    "@electron-forge/maker-dmg": "latest",
+    "@electron-forge/maker-squirrel": "latest",
+    "@electron-forge/maker-zip": "latest",
+    "@electron-forge/plugin-vite": "latest",
+    "@types/electron-squirrel-startup": "^1.0.2",
+    "@types/node": "^22.10.0",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@types/ws": "^8.5.13",
+    "electron": "latest",
+    "@vitejs/plugin-react": "latest",
+    "typescript": "^5.7.0",
+    "vite": "latest",
+    "vitest": "latest"
+  }
+}

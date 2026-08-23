@@ -1,0 +1,38 @@
+:root {
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #14213d;
+  background: #f5f7fb;
+  --arc-primary: #3157d5;
+  --arc-accent: #5b7cf0;
+  --arc-sidebar: #101a35;
+  --arc-sidebar-text: #dbe4ff;
+  --arc-border: #dde3ee;
+  --arc-radius: 12px;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 980px; min-height: 640px; }
+button { font: inherit; }
+.shell { min-height: 100vh; display: grid; grid-template-columns: 238px 1fr; }
+.sidebar { background: var(--arc-sidebar); color: var(--arc-sidebar-text); padding: 22px 14px; display: flex; flex-direction: column; }
+.brand { display: flex; align-items: center; gap: 11px; padding: 0 10px 26px; font-weight: 750; }
+.brand-mark { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 9px; background: var(--arc-primary); color: white; }
+nav { display: grid; gap: 5px; }
+nav button { border: 0; border-radius: 8px; padding: 11px 12px; text-align: left; color: #aebbdc; background: transparent; cursor: pointer; }
+nav button:hover { background: #18274c; color: white; }
+nav button.active { background: var(--arc-primary); color: white; }
+.device { margin-top: auto; border-top: 1px solid #27365b; padding: 18px 10px 4px; display: grid; gap: 5px; }
+.device small { color: #7382aa; letter-spacing: .12em; font-size: 10px; }
+.content { min-width: 0; }
+header { height: 57px; padding: 0 28px; background: white; border-bottom: 1px solid var(--arc-border); display: flex; align-items: center; justify-content: space-between; }
+.status { color: #c2413b; background: #fff1f0; border: 1px solid #ffd2cf; border-radius: 999px; padding: 6px 11px; font-size: 12px; }
+.page { padding: 28px; }
+.headline h1 { margin: 0 0 7px; font-size: 22px; }
+.headline p { margin: 0; color: #6b7892; }
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 25px 0 18px; }
+article { background: white; border: 1px solid var(--arc-border); border-radius: var(--arc-radius); padding: 19px; box-shadow: 0 2px 8px rgba(20,33,61,.035); }
+.cards article { display: grid; gap: 8px; }
+.cards small { color: #8490a8; letter-spacing: .08em; font-size: 10px; font-weight: 700; }
+.cards strong { font-size: 20px; }
+.cards span, .panel p { color: #6b7892; font-size: 13px; }
+.panel h2 { margin: 0 0 8px; font-size: 15px; }
+.panel p { margin: 0; line-height: 1.6; }
