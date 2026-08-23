@@ -4,6 +4,20 @@ import { SatelliteConfig } from "./config";
 import { SatelliteEvents } from "./events";
 import { CloudInboundMessage, CloudInboundSchema, CloudOutboundMessage, CloudOutboundSchema } from "./protocol/cloud";
 
+const DEFAULT_REGISTRATION_TIMEOUT_MS = 10_000;
+
+const describeError = (error: unknown): string => {
+  if (error instanceof AggregateError) {
+    const details = error.errors.map(describeError).filter(Boolean).join("; ");
+    return details || error.message || "Unknown aggregate connection error";
+  }
+  if (error instanceof Error) {
+    const code = "code" in error && typeof error.code === "string" ? ` (${error.code})` : "";
+    return `${error.message || error.name}${code}`;
+  }
+  return String(error);
+};
+
 const toWebSocketUrl = (serverUrl: string): string => {
   const url = new URL(serverUrl);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
@@ -18,8 +32,13 @@ export class CloudClient extends EventEmitter {
   private stopped = true;
   private reconnectAttempt = 0;
   private reconnectTimer?: NodeJS.Timeout;
+  private registrationTimer?: NodeJS.Timeout;
 
-  constructor(private config: SatelliteConfig, private readonly events: SatelliteEvents) { super(); }
+  constructor(
+    private config: SatelliteConfig,
+    private readonly events: SatelliteEvents,
+    private readonly registrationTimeoutMs = DEFAULT_REGISTRATION_TIMEOUT_MS,
+  ) { super(); }
 
   updateConfig(config: SatelliteConfig): void {
     this.config = config;
@@ -35,12 +54,14 @@ export class CloudClient extends EventEmitter {
   stop(): void {
     this.stopped = true;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.clearRegistrationTimer();
     this.socket?.close(1000, "client stopped");
     this.socket = undefined;
     this.emit("state", "stopped");
   }
 
   reconnect(): void {
+    this.clearRegistrationTimer();
     this.socket?.close(1000, "configuration changed");
     this.socket = undefined;
     this.reconnectAttempt = 0;
@@ -60,14 +81,17 @@ export class CloudClient extends EventEmitter {
   private connect(): void {
     if (this.stopped) return;
     this.emit("state", this.reconnectAttempt ? "reconnecting" : "connecting");
+    const endpoint = toWebSocketUrl(this.config.serverUrl);
+    this.events.log("system", { type: "cloud-connecting", endpoint, attempt: this.reconnectAttempt + 1 });
     let socket: WebSocket;
-    try { socket = new WebSocket(toWebSocketUrl(this.config.serverUrl), { handshakeTimeout: 10_000 }); }
+    try { socket = new WebSocket(endpoint, { handshakeTimeout: 10_000 }); }
     catch (error) { this.scheduleReconnect(error); return; }
     this.socket = socket;
 
     socket.once("open", () => {
       this.emit("state", "registering");
-      this.send({
+      this.events.log("system", { type: "cloud-transport-open", endpoint });
+      const sent = this.send({
         type: "connect", client_id: this.config.clientId, name: this.config.name,
         version: "0.1.0", triggers: this.config.triggers,
         ...(this.config.apiToken ? { api_token: this.config.apiToken } : {}),
@@ -77,11 +101,24 @@ export class CloudClient extends EventEmitter {
         ...(this.config.zone ? { zone: this.config.zone } : {}),
         ...(this.config.applicationType ? { application_type: this.config.applicationType } : {}),
       });
+      if (sent) {
+        this.clearRegistrationTimer();
+        this.registrationTimer = setTimeout(() => {
+          if (this.socket !== socket || socket.readyState !== WebSocket.OPEN) return;
+          this.events.log("error", {
+            source: "cloud",
+            detail: "Server registration acknowledgement timed out",
+            timeoutMs: this.registrationTimeoutMs,
+          });
+          socket.terminate();
+        }, this.registrationTimeoutMs);
+      }
     });
 
     socket.on("message", (data) => this.receive(data.toString()));
-    socket.once("error", (error) => this.events.log("error", { source: "cloud", detail: error.message }));
+    socket.once("error", (error) => this.events.log("error", { source: "cloud", detail: describeError(error) }));
     socket.once("close", (code, reason) => {
+      this.clearRegistrationTimer();
       if (this.socket === socket) this.socket = undefined;
       if (code === 4401) {
         this.stopped = true;
@@ -105,7 +142,9 @@ export class CloudClient extends EventEmitter {
     this.events.log("cloud-in", message as unknown as Record<string, unknown>);
     if (message.type === "ping") this.send({ type: "pong", client_id: this.config.clientId });
     if (message.type === "ack" && message.ref === "connect") {
+      this.clearRegistrationTimer();
       this.reconnectAttempt = 0;
+      this.events.log("system", { type: "cloud-registered" });
       this.emit("registered", message);
       this.emit("state", "connected");
     }
@@ -115,9 +154,14 @@ export class CloudClient extends EventEmitter {
   private scheduleReconnect(error: unknown): void {
     if (this.stopped || this.reconnectTimer) return;
     const delay = Math.min(30_000, 2_000 * 1.5 ** this.reconnectAttempt++);
-    this.events.log("error", { source: "cloud", detail: error instanceof Error ? error.message : String(error), retryMs: delay });
+    this.events.log("error", { source: "cloud", detail: describeError(error), retryMs: delay });
     this.emit("state", "reconnecting");
     this.reconnectTimer = setTimeout(() => { this.reconnectTimer = undefined; this.connect(); }, delay);
+  }
+
+  private clearRegistrationTimer(): void {
+    if (this.registrationTimer) clearTimeout(this.registrationTimer);
+    this.registrationTimer = undefined;
   }
 }
 

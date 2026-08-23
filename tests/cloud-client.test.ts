@@ -40,4 +40,36 @@ describe("CloudClient", () => {
     expect(received.map((message) => message.type)).toEqual(["connect", "pong"]);
     client.stop();
   });
+
+  it("terminates a connection when the server never acknowledges registration", async () => {
+    const server = new WebSocketServer({ host: "127.0.0.1", port: 0 });
+    servers.push(server);
+    await new Promise<void>((resolve) => server.once("listening", resolve));
+    const address = server.address();
+    if (typeof address === "string" || address === null) throw new Error("Expected TCP address");
+    const events = new SatelliteEvents();
+    const errors: Record<string, unknown>[] = [];
+    events.on("activity", (entry) => {
+      if (entry.direction === "error") errors.push(entry.message);
+    });
+    const client = new CloudClient(
+      createTestConfig({ serverUrl: `http://127.0.0.1:${address.port}` }),
+      events,
+      25,
+    );
+    client.start();
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("Timed out")), 500);
+      const poll = setInterval(() => {
+        if (errors.some((message) => message.detail === "Server registration acknowledgement timed out")) {
+          clearInterval(poll);
+          clearTimeout(timeout);
+          resolve();
+        }
+      }, 5);
+    });
+
+    client.stop();
+  });
 });
