@@ -3,6 +3,8 @@ import type { SatelliteConfig } from "./config";
 import { CloudClient } from "./cloud-client";
 import { SatelliteEvents, SatelliteStatus } from "./events";
 import { LocalWebSocketTransport } from "./local-websocket";
+import { AppLauncher } from "./app-launcher";
+import { SystemMonitor, type SystemSnapshot } from "./system-monitor";
 import type { CloudInboundMessage } from "./protocol/cloud";
 import type { TriggerDefinition } from "./protocol/common";
 import type { LocalInboundMessage } from "./protocol/local";
@@ -16,6 +18,8 @@ export class SatelliteCore {
   readonly events = new SatelliteEvents();
   readonly cloud: CloudClient;
   readonly local: LocalWebSocketTransport;
+  readonly monitor: SystemMonitor;
+  readonly launcher: AppLauncher;
   private config: SatelliteConfig;
   private cloudSessionId?: string;
   private customer?: Record<string, unknown>;
@@ -25,16 +29,20 @@ export class SatelliteCore {
     this.config = options.config;
     this.cloud = new CloudClient(this.config, this.events);
     this.local = new LocalWebSocketTransport(this.events);
+    this.monitor = new SystemMonitor(() => this.config, this.events);
+    this.launcher = new AppLauncher(() => this.config, this.events);
     this.wire();
   }
 
   async start(): Promise<void> {
     await this.local.start(this.config.localWsPort);
+    this.monitor.start();
     this.cloud.start();
   }
 
   async stop(): Promise<void> {
     this.cloud.stop();
+    this.monitor.stop();
     await this.local.stop();
   }
 
@@ -56,6 +64,7 @@ export class SatelliteCore {
       if (ack.api_token) { this.config.apiToken = ack.api_token; changed = true; }
       if (ack.canonical_client_id) { this.config.clientId = ack.canonical_client_id; changed = true; }
       if (changed) void this.options.saveConfig(this.config);
+      if (this.config.launcher.onConnect && !this.local.isAppConnected()) this.launcher.launch("cloud-connect");
     });
     this.cloud.on("message", (message: CloudInboundMessage) => this.handleCloud(message));
     this.local.on("state", (localTransport) => this.updateStatus({ localTransport }));
@@ -72,6 +81,16 @@ export class SatelliteCore {
       if (this.cloudSessionId) this.sendSessionEnded(this.cloudSessionId);
       this.clearSession();
       this.updateStatus({ localSessionId: undefined });
+    });
+    this.monitor.on("snapshot", (snapshot: SystemSnapshot) => this.events.emit("system-stats", snapshot));
+    this.monitor.on("health", (reasons: string[]) => this.cloud.send({ type: "health_status", client_id: this.config.clientId, alert: reasons.length > 0, reasons }));
+    this.monitor.on("process-change", ({ name, running, at }: { name: string; running: boolean; at: string }) => {
+      this.cloud.send({ type: "system_alert", client_id: this.config.clientId, process: name, status: running ? "running" : "stopped", timestamp: at });
+      if (!running) this.launcher.relaunchAfterProcessStop();
+    });
+    this.events.on("snapshot-requested", () => {
+      const stats = this.monitor.getSnapshot();
+      if (stats) this.cloud.send({ type: "snapshot-response", client_id: this.config.clientId, stats: stats as unknown as Record<string, never> });
     });
   }
 
@@ -104,6 +123,7 @@ export class SatelliteCore {
       this.customer = customer;
       this.updateStatus({ cloudSessionId: sessionId });
       this.local.send({ ...message, type: "session-start", session_id: sessionId });
+      if (this.config.launcher.onSession && !this.local.isAppConnected()) this.launcher.launch("session");
     } else {
       this.local.send(message);
     }
