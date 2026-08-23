@@ -14,6 +14,57 @@ const pages = [
   "System Monitor",
 ] as const;
 type Page = (typeof pages)[number];
+
+const PageIcon = ({ page }: { page: Page }): React.JSX.Element => {
+  const paths: Record<Page, React.ReactNode> = {
+    Overview: (
+      <>
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
+      </>
+    ),
+    "Trigger Events": (
+      <path d="m13 2-9 12h8l-1 8 9-12h-8l1-8Z" />
+    ),
+    "Activity Log": (
+      <>
+        <path d="M4 6h16M4 12h16M4 18h16" />
+        <path d="M7 3v6M17 9v6M9 15v6" />
+      </>
+    ),
+    Settings: (
+      <>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 8.96 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15 1.7 1.7 0 0 0 3.08 14H3v-4h.08A1.7 1.7 0 0 0 4.6 8.96a1.7 1.7 0 0 0-.34-1.88L4.2 7.02l2.83-2.83.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 10 3.08V3h4v.08a1.7 1.7 0 0 0 1.04 1.52 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.92 10H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z" />
+      </>
+    ),
+    "App Launcher": (
+      <path d="m5 3 14 9-14 9V3Z" />
+    ),
+    "System Monitor": (
+      <>
+        <path d="M3 12h4l2-7 4 14 2-7h6" />
+        <path d="M21 12a9 9 0 1 1-3-6.7" />
+      </>
+    ),
+  };
+  return (
+    <svg
+      aria-hidden="true"
+      className="nav-icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {paths[page]}
+    </svg>
+  );
+};
 type ActivityPreferences = { showAcks: boolean; showPing: boolean };
 const Badge = ({
   good,
@@ -1327,7 +1378,8 @@ function App(): React.JSX.Element {
               key={item}
               onClick={() => setPage(item)}
             >
-              {item}
+              <PageIcon page={item} />
+              <span>{item}</span>
             </button>
           ))}
         </nav>

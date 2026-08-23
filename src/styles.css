@@ -39,12 +39,12 @@ button {
 .shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: 16rem 1fr;
 }
 .sidebar {
   background: var(--arc-sidebar);
   color: var(--arc-sidebar-text);
-  padding: 22px 14px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   position: sticky;
@@ -56,7 +56,7 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 10px 26px;
+  padding: 16px;
   font-weight: 750;
   min-height: 62px;
 }
@@ -68,11 +68,18 @@ button {
   object-position: left center;
 }
 .brand.logo-only img {
-  max-width: 100%;
-  max-height: 76px;
+  width: 100%;
+  max-width: none;
+  max-height: 180px;
+  height: auto;
 }
 .brand.has-logo {
-  padding-left: 4px;
+  padding-left: 16px;
+}
+.brand.logo-only {
+  display: block;
+  min-height: 0;
+  padding: 20px 26px 18px;
 }
 .brand.has-logo > span {
   min-width: 0;
@@ -96,16 +103,25 @@ button {
 }
 nav {
   display: grid;
-  gap: 5px;
+  gap: 4px;
+  padding: 8px;
 }
 nav button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
   border: 0;
-  border-radius: 8px;
-  padding: 11px 12px;
+  border-radius: max(0px, calc(var(--arc-radius) - 4px));
+  padding: 7px 8px;
   text-align: left;
-  color: #aebbdc;
+  color: color-mix(in srgb, var(--arc-sidebar-text) 78%, transparent);
   background: transparent;
   cursor: pointer;
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 500;
+  transition: background-color 120ms ease, color 120ms ease;
 }
 nav button:hover {
   background: var(--arc-sidebar-hover);
@@ -114,11 +130,17 @@ nav button:hover {
 nav button.active {
   background: var(--arc-sidebar-selected);
   color: white;
+  font-weight: 600;
+}
+.nav-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
 }
 .device {
   margin-top: auto;
   border-top: 1px solid #27365b;
-  padding: 18px 10px 4px;
+  padding: 18px 18px 14px;
   display: grid;
   gap: 5px;
 }
