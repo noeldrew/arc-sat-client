@@ -14,6 +14,7 @@ const pages = [
   "System Monitor",
 ] as const;
 type Page = (typeof pages)[number];
+type ActivityPreferences = { showAcks: boolean; showPing: boolean };
 const Badge = ({
   good,
   children,
@@ -68,8 +69,22 @@ const Stat = ({
     <span>{detail}</span>
   </article>
 );
-const eventName = (entry: ActivityEntry): string =>
-  String(entry.message.type ?? entry.message.detail ?? "event");
+const eventName = (entry: ActivityEntry): string => {
+  const type = String(entry.message.type ?? entry.message.detail ?? "event");
+  return type === "command" && entry.message.action
+    ? `${type}: ${String(entry.message.action)}`
+    : type;
+};
+const filterActivity = (
+  activity: ActivityEntry[],
+  preferences: ActivityPreferences,
+): ActivityEntry[] =>
+  activity.filter((entry) => {
+    const type = String(entry.message.type ?? "").toLowerCase();
+    if (!preferences.showAcks && type === "ack") return false;
+    if (!preferences.showPing && ["ping", "pong"].includes(type)) return false;
+    return true;
+  });
 
 function ActivityRows({
   activity,
@@ -119,18 +134,17 @@ function ActivityRows({
 function ActivityLog({
   activity,
   clear,
+  preferences,
+  setPreferences,
 }: {
   activity: ActivityEntry[];
   clear: () => void;
+  preferences: ActivityPreferences;
+  setPreferences: React.Dispatch<React.SetStateAction<ActivityPreferences>>;
 }): React.JSX.Element {
   const [scope, setScope] = useState<"all" | "cloud" | "app" | "errors">("all");
-  const [showAcks, setShowAcks] = useState(false);
-  const [showPing, setShowPing] = useState(false);
   const [group, setGroup] = useState(false);
-  const filtered = activity.filter((entry) => {
-    const type = eventName(entry).toLowerCase();
-    if (!showAcks && type === "ack") return false;
-    if (!showPing && ["ping", "pong"].includes(type)) return false;
+  const filtered = filterActivity(activity, preferences).filter((entry) => {
     if (scope === "cloud" && !entry.direction.startsWith("cloud")) return false;
     if (scope === "app" && !entry.direction.startsWith("local")) return false;
     if (scope === "errors" && entry.direction !== "error") return false;
@@ -161,7 +175,9 @@ function ActivityLog({
     <>
       <div className="headline">
         <h1>Activity Log</h1>
-        <p>Validated traffic between the ARC server, ARC Client and local app.</p>
+        <p>
+          Validated traffic between the ARC server, ARC Client and local app.
+        </p>
       </div>
       <div className="log-toolbar">
         <div className="segmented">
@@ -181,14 +197,24 @@ function ActivityLog({
         </div>
         <div className="toolbar-actions">
           <button
-            className={showAcks ? "selected" : ""}
-            onClick={() => setShowAcks(!showAcks)}
+            className={preferences.showAcks ? "selected" : ""}
+            onClick={() =>
+              setPreferences((current) => ({
+                ...current,
+                showAcks: !current.showAcks,
+              }))
+            }
           >
             Show acks
           </button>
           <button
-            className={showPing ? "selected" : ""}
-            onClick={() => setShowPing(!showPing)}
+            className={preferences.showPing ? "selected" : ""}
+            onClick={() =>
+              setPreferences((current) => ({
+                ...current,
+                showPing: !current.showPing,
+              }))
+            }
           >
             Show ping/pong
           </button>
@@ -198,8 +224,22 @@ function ActivityLog({
           >
             Group by Session
           </button>
-          <button onClick={copy}>Copy all</button>
-          <button onClick={clear}>Clear</button>
+          <button
+            className="tool-icon"
+            onClick={copy}
+            title="Copy visible activity"
+            aria-label="Copy visible activity"
+          >
+            ⧉
+          </button>
+          <button
+            className="tool-icon danger"
+            onClick={clear}
+            title="Clear activity"
+            aria-label="Clear activity"
+          >
+            ⌫
+          </button>
         </div>
       </div>
       <section className="panel log-panel">
@@ -367,7 +407,22 @@ function Settings({
   const [draft, setDraft] = useState(config);
   const [saved, setSaved] = useState(false);
   const [showToken, setShowToken] = useState(false);
+  const [zoneResult, setZoneResult] = useState<{
+    available: boolean;
+    zones: Array<{ id: string; name: string }>;
+    reason?: string;
+  }>({ available: false, zones: [], reason: "Loading zones…" });
   useEffect(() => setDraft(config), [config]);
+  useEffect(() => {
+    if (!window.arcSatellite) {
+      setZoneResult({
+        available: true,
+        zones: [{ id: "preview", name: "Zone A" }],
+      });
+      return;
+    }
+    void window.arcSatellite.getZones().then(setZoneResult);
+  }, [config.siteId, config.serverUrl, config.apiToken]);
   const update = <K extends keyof SatelliteConfig>(
     key: K,
     value: SatelliteConfig[K],
@@ -403,15 +458,6 @@ function Settings({
               onChange={(e) => update("description", e.target.value)}
             />
           </Field>
-          <Field label="Installation ID (optional)">
-            <input
-              className="mono"
-              value={draft.installationId ?? ""}
-              onChange={(e) =>
-                update("installationId", e.target.value || undefined)
-              }
-            />
-          </Field>
         </div>
       </section>
       <section className="panel form">
@@ -427,12 +473,26 @@ function Settings({
               onChange={(e) => update("siteId", e.target.value || undefined)}
             />
           </Field>
-          <Field label="Zone (optional)">
-            <input
-              placeholder="e.g. Zone A, Level 2"
+          <Field
+            label="Zone"
+            hint={
+              zoneResult.available
+                ? "Zones loaded from the ARC server."
+                : (zoneResult.reason ?? "Zones are unavailable.")
+            }
+          >
+            <select
+              disabled={!zoneResult.available}
               value={draft.zone}
               onChange={(e) => update("zone", e.target.value)}
-            />
+            >
+              <option value="">— Not set —</option>
+              {zoneResult.zones.map((zone) => (
+                <option value={zone.name} key={zone.id}>
+                  {zone.name}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="Application Type">
             <select
@@ -520,35 +580,6 @@ function Settings({
           ))}
         </div>
       </section>
-      <section className="panel form">
-        <h2>Health Reporting</h2>
-        <div className="form-grid">
-          {(
-            [
-              ["CPU alert threshold (%)", "cpuThreshold"],
-              ["RAM alert threshold (%)", "ramThreshold"],
-              ["Disk alert threshold (%)", "diskThreshold"],
-              ["Sample interval (seconds)", "intervalSeconds"],
-            ] as const
-          ).map(([label, key]) => (
-            <Field label={label} key={key}>
-              <input
-                type="number"
-                value={draft.monitoring[key]}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    monitoring: {
-                      ...draft.monitoring,
-                      [key]: Number(e.target.value),
-                    },
-                  })
-                }
-              />
-            </Field>
-          ))}
-        </div>
-      </section>
       <div className="actions">
         <button
           className="primary"
@@ -579,21 +610,49 @@ function Launcher({
 }): React.JSX.Element {
   const [draft, setDraft] = useState(config.launcher);
   const [dragging, setDragging] = useState(false);
+  const [detectedProcess, setDetectedProcess] = useState("");
   useEffect(() => setDraft(config.launcher), [config]);
+  useEffect(() => {
+    if (!config.launcher.path) return;
+    if (!window.arcSatellite) {
+      setDetectedProcess("Zombears");
+      return;
+    }
+    void window.arcSatellite
+      .detectProcess(config.launcher.path)
+      .then(setDetectedProcess);
+  }, [config.launcher.path]);
   const choose = async (): Promise<void> => {
     const selected = await window.arcSatellite.chooseApplication();
-    if (selected) setDraft({ ...draft, path: selected, type: "file" });
+    if (selected) {
+      setDraft({ ...draft, path: selected, type: "file" });
+      setDetectedProcess(await window.arcSatellite.detectProcess(selected));
+    }
   };
   const drop = (event: React.DragEvent): void => {
     event.preventDefault();
     setDragging(false);
     const file = event.dataTransfer.files[0];
-    if (file)
+    if (file) {
+      const selected = window.arcSatellite.getPathForFile(file);
       setDraft({
         ...draft,
-        path: window.arcSatellite.getPathForFile(file),
+        path: selected,
         type: "file",
       });
+      void window.arcSatellite.detectProcess(selected).then(setDetectedProcess);
+    }
+  };
+  const saveOptions = (): void => {
+    const processes =
+      detectedProcess && !config.monitoring.processes.includes(detectedProcess)
+        ? [...config.monitoring.processes, detectedProcess]
+        : config.monitoring.processes;
+    void save({
+      ...config,
+      launcher: draft,
+      monitoring: { ...config.monitoring, processes },
+    });
   };
   return (
     <>
@@ -614,6 +673,12 @@ function Launcher({
             onChange={(e) =>
               setDraft({ ...draft, path: e.target.value, type: "file" })
             }
+            onBlur={() => {
+              if (draft.path)
+                void window.arcSatellite
+                  .detectProcess(draft.path)
+                  .then(setDetectedProcess);
+            }}
           />
           <button onClick={() => void choose()}>Browse…</button>
         </div>
@@ -655,6 +720,7 @@ function Launcher({
           {(
             [
               ["onConnect", "Auto-launch when connected to ARC server"],
+              ["onClientStart", "Auto-launch when the ARC Client starts"],
               ["onSession", "Auto-launch when a player session starts"],
               ["autoRelaunch", "Auto-relaunch if a monitored process stops"],
               ["queueSession", "Queue last session when app is not running"],
@@ -672,6 +738,12 @@ function Launcher({
             </label>
           ))}
         </div>
+        {detectedProcess && (
+          <div className="detected-process">
+            Monitoring process will be added automatically:{" "}
+            <strong>{detectedProcess}</strong>
+          </div>
+        )}
         <div className="compact-fields">
           <Field label="Relaunch cooldown">
             <div className="unit">
@@ -700,13 +772,25 @@ function Launcher({
               <span>s</span>
             </div>
           </Field>
+          <Field label="Client-start delay">
+            <div className="unit">
+              <input
+                type="number"
+                value={draft.clientStartDelaySeconds}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    clientStartDelaySeconds: Number(e.target.value),
+                  })
+                }
+              />
+              <span>s</span>
+            </div>
+          </Field>
         </div>
       </section>
       <div className="actions">
-        <button
-          className="primary"
-          onClick={() => void save({ ...config, launcher: draft })}
-        >
+        <button className="primary" onClick={saveOptions}>
           Save Options
         </button>
         <button onClick={() => void window.arcSatellite.launchApp()}>
@@ -739,6 +823,8 @@ function Monitor({
   openConsole: () => void;
 }): React.JSX.Element {
   const [name, setName] = useState("");
+  const [monitoring, setMonitoring] = useState(config.monitoring);
+  useEffect(() => setMonitoring(config.monitoring), [config.monitoring]);
   const add = (): void => {
     if (name.trim() && !config.monitoring.processes.includes(name.trim())) {
       void save({
@@ -931,6 +1017,42 @@ function Monitor({
           </button>
         </div>
       </section>
+      <section className="panel form">
+        <h2>Health Reporting</h2>
+        <p>
+          Set the thresholds and sampling interval used for server health
+          alerts.
+        </p>
+        <div className="form-grid health-fields">
+          {(
+            [
+              ["CPU alert threshold (%)", "cpuThreshold"],
+              ["RAM alert threshold (%)", "ramThreshold"],
+              ["Disk alert threshold (%)", "diskThreshold"],
+              ["Sample interval (seconds)", "intervalSeconds"],
+            ] as const
+          ).map(([label, key]) => (
+            <Field label={label} key={key}>
+              <input
+                type="number"
+                value={monitoring[key]}
+                onChange={(e) =>
+                  setMonitoring({
+                    ...monitoring,
+                    [key]: Number(e.target.value),
+                  })
+                }
+              />
+            </Field>
+          ))}
+        </div>
+        <button
+          className="save-monitoring"
+          onClick={() => void save({ ...config, monitoring })}
+        >
+          Save Monitoring Settings
+        </button>
+      </section>
     </>
   );
 }
@@ -981,6 +1103,8 @@ function App(): React.JSX.Element {
   const [config, setConfig] = useState<SatelliteConfig>();
   const [stats, setStats] = useState<SystemSnapshot>();
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
+  const [activityPreferences, setActivityPreferences] =
+    useState<ActivityPreferences>({ showAcks: false, showPing: false });
   const [brandName, setBrandName] = useState("ARC");
   const [brandLogo, setBrandLogo] = useState<string>();
   const [logoOnly, setLogoOnly] = useState(false);
@@ -990,7 +1114,79 @@ function App(): React.JSX.Element {
     delaySeconds: number;
   }>();
   useEffect(() => {
-    if (!window.arcSatellite) return;
+    if (!window.arcSatellite) {
+      if (import.meta.env.DEV) {
+        setConfig({
+          schemaVersion: 1,
+          clientId: "00000000-0000-4000-8000-000000000001",
+          name: "ARC Client Preview",
+          description: "",
+          zone: "Zone A",
+          applicationType: "game",
+          serverUrl: "http://localhost:8080",
+          localWsPort: 25585,
+          localHttpEnabled: true,
+          localHttpPort: 25586,
+          localTcpEnabled: true,
+          localTcpPort: 25587,
+          localUdpEnabled: true,
+          localUdpPort: 25588,
+          triggers: [],
+          launcher: {
+            type: "file",
+            path: "/Applications/Zombears.app",
+            script: "",
+            onConnect: false,
+            onClientStart: true,
+            clientStartDelaySeconds: 5,
+            onSession: false,
+            delaySeconds: 5,
+            queueSession: true,
+            autoRelaunch: false,
+            relaunchCooldownSeconds: 60,
+          },
+          monitoring: {
+            processes: ["Zombears"],
+            cpuThreshold: 85,
+            ramThreshold: 90,
+            diskThreshold: 90,
+            intervalSeconds: 15,
+          },
+        });
+        setStatus({
+          cloud: "connected",
+          localTransport: "connected",
+          localAppConnected: true,
+        });
+        const at = new Date().toISOString();
+        setActivity([
+          {
+            at,
+            direction: "cloud-in",
+            message: {
+              type: "command",
+              action: "session_start",
+              session_id: "preview-session",
+            },
+          },
+          {
+            at,
+            direction: "cloud-out",
+            message: { type: "trigger", trigger_id: "game-started" },
+          },
+          { at, direction: "local-in", message: { type: "hello" } },
+          { at, direction: "local-out", message: { type: "ack" } },
+          { at, direction: "system", message: { type: "local-app-connected" } },
+          {
+            at,
+            direction: "error",
+            message: { detail: "Example connection error" },
+          },
+          { at, direction: "cloud-in", message: { type: "ping" } },
+        ]);
+      }
+      return;
+    }
     void Promise.all([
       window.arcSatellite.getStatus(),
       window.arcSatellite.getConfig(),
@@ -1062,12 +1258,23 @@ function App(): React.JSX.Element {
     if (!config) return <div className="empty">Loading configuration…</div>;
     switch (page) {
       case "Overview":
-        return <Overview status={status} stats={stats} activity={activity} />;
+        return (
+          <Overview
+            status={status}
+            stats={stats}
+            activity={filterActivity(activity, activityPreferences)}
+          />
+        );
       case "Trigger Events":
         return <Triggers config={config} save={save} />;
       case "Activity Log":
         return (
-          <ActivityLog activity={activity} clear={() => setActivity([])} />
+          <ActivityLog
+            activity={activity}
+            clear={() => setActivity([])}
+            preferences={activityPreferences}
+            setPreferences={setActivityPreferences}
+          />
         );
       case "Settings":
         return <Settings config={config} save={save} />;
@@ -1083,7 +1290,7 @@ function App(): React.JSX.Element {
           />
         );
     }
-  }, [page, config, status, stats, activity]);
+  }, [page, config, status, stats, activity, activityPreferences]);
   const serverState =
     status.cloud === "connected"
       ? "Connected"
@@ -1098,7 +1305,9 @@ function App(): React.JSX.Element {
   return (
     <main className="shell">
       <aside className="sidebar">
-        <div className={`brand ${brandLogo ? "has-logo" : ""} ${logoOnly ? "logo-only" : ""}`}>
+        <div
+          className={`brand ${brandLogo ? "has-logo" : ""} ${logoOnly ? "logo-only" : ""}`}
+        >
           {brandLogo ? (
             <img src={brandLogo} alt={brandName} />
           ) : (

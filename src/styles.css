@@ -47,6 +47,10 @@ button {
   padding: 22px 14px;
   display: flex;
   flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
 }
 .brand {
   display: flex;
@@ -63,7 +67,10 @@ button {
   object-fit: contain;
   object-position: left center;
 }
-.brand.logo-only img { max-width:100%; max-height:76px; }
+.brand.logo-only img {
+  max-width: 100%;
+  max-height: 76px;
+}
 .brand.has-logo {
   padding-left: 4px;
 }
@@ -285,12 +292,15 @@ button.primary {
 }
 .activity-list {
   display: grid;
+  gap: 8px;
+  padding: 10px;
+  background: var(--arc-muted-bg);
 }
 .activity-item {
-  border-top: 1px solid var(--arc-border);
-}
-.activity-item:first-child {
-  border-top: 0;
+  border: 1px solid var(--arc-border);
+  border-radius: var(--arc-radius);
+  overflow: hidden;
+  background: #fff;
 }
 .activity-row {
   display: grid;
@@ -300,7 +310,7 @@ button.primary {
   width: 100%;
   min-height: 42px;
   border: 0;
-  border-radius: 0;
+  border-radius: var(--arc-radius);
   padding: 0 10px;
   font-size: 11px;
   min-width: 0;
@@ -357,6 +367,26 @@ button.primary {
   background: #eef2ff;
   color: #3b5ccc;
 }
+.direction.cloud-in {
+  background: #e8f1ff;
+  color: #1259b2;
+}
+.direction.cloud-out {
+  background: #e8fbf4;
+  color: #087854;
+}
+.direction.local-in {
+  background: #fff4df;
+  color: #a45b00;
+}
+.direction.local-out {
+  background: #f1eaff;
+  color: #6f3fbd;
+}
+.direction.system {
+  background: #edf0f4;
+  color: #4b586b;
+}
 .direction.error {
   background: #fff1f0;
   color: #c2413b;
@@ -394,6 +424,8 @@ button.primary {
   min-height: 28px;
   font-size: 11px;
   color: #b42318;
+  background: #fff;
+  border-color: #dc8d86;
 }
 .form {
   padding: 22px;
@@ -526,14 +558,39 @@ textarea {
   flex-wrap: wrap;
   gap: 8px;
 }
+.segmented button,
+.toolbar-actions button:not(.tool-icon) {
+  min-height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid var(--arc-primary);
+  background: #fff;
+  color: var(--arc-primary);
+  font-size: 12px;
+}
 .segmented button.selected,
 .toolbar-actions button.selected {
-  color: var(--arc-primary);
+  color: white;
   border-color: var(--arc-primary);
-  background: #eef3ff;
+  background: var(--arc-primary);
+}
+.tool-icon {
+  width: 31px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: var(--arc-radius);
+  background: #334155;
+  border-color: #334155;
+  color: #fff;
+  font-size: 16px;
+}
+.tool-icon.danger {
+  background: #fff;
+  border-color: #dc3f3f;
+  color: #c52f2f;
 }
 .log-panel {
-  padding: 5px 14px 14px;
+  padding: 0;
 }
 .session-group {
   margin-top: 14px;
@@ -663,6 +720,20 @@ textarea {
 }
 .add-process input {
   flex: 1;
+}
+.detected-process {
+  margin-top: 16px;
+  padding: 10px 12px;
+  background: #eef8f4;
+  border: 1px solid #b7dfd0;
+  color: #16624a;
+  font-size: 13px;
+}
+.health-fields {
+  margin-top: 18px;
+}
+.save-monitoring {
+  margin-top: 18px;
 }
 @media (max-width: 1100px) {
   .cards,
