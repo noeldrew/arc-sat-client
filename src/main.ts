@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import started from "electron-squirrel-startup";
 import path from "node:path";
+import { readFile, writeFile } from "node:fs/promises";
 import { ConfigStore, SatelliteConfigSchema } from "./core/config";
 import type { ActivityEntry, SatelliteStatus } from "./core/events";
 import { SatelliteCore } from "./core/satellite-core";
@@ -65,6 +66,26 @@ const startCore = async (): Promise<void> => {
     const result = await dialog.showSaveDialog({ title: "Export ARC Satellite Diagnostics", defaultPath: `arc-satellite-diagnostics-${new Date().toISOString().slice(0, 10)}.json`, filters: [{ name: "JSON", extensions: ["json"] }] });
     if (result.canceled || !result.filePath) return false;
     await diagnostics.export(result.filePath, core!.getConfig(), core!.getStatus(), core!.monitor.getSnapshot()); return true;
+  });
+  ipcMain.handle("satellite:export-template", async () => {
+    const result = await dialog.showSaveDialog({ title: "Save ARC Satellite Template", defaultPath: "arc-satellite-template.json", filters: [{ name: "ARC Satellite Template", extensions: ["json"] }] });
+    if (result.canceled || !result.filePath) return false;
+    const { clientId: _clientId, ...portable } = core!.getConfig();
+    await writeFile(result.filePath, `${JSON.stringify({ templateVersion: 1, config: portable }, null, 2)}\n`, { mode: 0o600 });
+    return true;
+  });
+  ipcMain.handle("satellite:import-template", async () => {
+    const result = await dialog.showOpenDialog({ title: "Import ARC Satellite Template", properties: ["openFile"], filters: [{ name: "ARC Satellite Template", extensions: ["json"] }] });
+    if (result.canceled || !result.filePaths[0]) return undefined;
+    const parsed = JSON.parse(await readFile(result.filePaths[0], "utf8")) as { config?: Record<string, unknown> } & Record<string, unknown>;
+    const portable = parsed.config && typeof parsed.config === "object" ? parsed.config : parsed;
+    const next = SatelliteConfigSchema.parse({ ...portable, schemaVersion: 1, clientId: core!.getConfig().clientId });
+    await core!.updateConfig(next);
+    return next;
+  });
+  ipcMain.handle("satellite:choose-application", async () => {
+    const result = await dialog.showOpenDialog({ title: "Choose Application or File", properties: ["openFile"] });
+    return result.canceled ? undefined : result.filePaths[0];
   });
   ipcMain.handle("satellite:update-config", async (_event, raw) => {
     const next = SatelliteConfigSchema.parse(raw);

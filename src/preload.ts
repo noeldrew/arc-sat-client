@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 
 const subscribe = <T>(channel: string, listener: (value: T) => void): (() => void) => {
   const wrapped = (_event: Electron.IpcRendererEvent, value: T): void => listener(value);
@@ -16,6 +16,10 @@ contextBridge.exposeInMainWorld("arcSatellite", {
   launchApp: () => ipcRenderer.invoke("satellite:launch-app"),
   cancelLaunch: () => ipcRenderer.invoke("satellite:cancel-launch"),
   exportDiagnostics: () => ipcRenderer.invoke("satellite:export-diagnostics"),
+  exportTemplate: () => ipcRenderer.invoke("satellite:export-template"),
+  importTemplate: () => ipcRenderer.invoke("satellite:import-template"),
+  chooseApplication: () => ipcRenderer.invoke("satellite:choose-application"),
+  getPathForFile: (file: File) => webUtils.getPathForFile(file),
   updateConfig: (config: unknown) => ipcRenderer.invoke("satellite:update-config", config),
   onStatus: (listener: (value: unknown) => void) => subscribe("satellite:status", listener),
   onActivity: (listener: (value: unknown) => void) => subscribe("satellite:activity", listener),
