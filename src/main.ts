@@ -16,6 +16,7 @@ if (started) app.quit();
 let core: SatelliteCore | undefined;
 const headless = process.argv.includes("--headless");
 let latestStatus: SatelliteStatus = { cloud: "stopped", localTransport: "stopped", localAppConnected: false };
+const recentActivity: ActivityEntry[] = [];
 
 const sendToRenderers = (channel: string, payload: unknown): void => {
   for (const window of BrowserWindow.getAllWindows()) window.webContents.send(channel, payload);
@@ -51,7 +52,7 @@ const startCore = async (): Promise<void> => {
   const config = await store.load();
   core = new SatelliteCore({ config, saveConfig: (next) => store.save(next) });
   core.events.on("status", (status: SatelliteStatus) => { latestStatus = status; sendToRenderers("satellite:status", status); });
-  core.events.on("activity", (entry: ActivityEntry) => { sendToRenderers("satellite:activity", entry); void diagnostics.append(entry); });
+  core.events.on("activity", (entry: ActivityEntry) => { recentActivity.push(entry); if (recentActivity.length > 1_000) recentActivity.splice(0, recentActivity.length - 1_000); sendToRenderers("satellite:activity", entry); void diagnostics.append(entry); });
   core.events.on("config", (next) => sendToRenderers("satellite:config", next));
   core.events.on("system-stats", (stats) => sendToRenderers("satellite:system-stats", stats));
   core.launcher.on("scheduled", (details) => sendToRenderers("satellite:launch-scheduled", details));
@@ -62,6 +63,7 @@ const startCore = async (): Promise<void> => {
   ipcMain.handle("satellite:launch-app", () => core?.launcher.launch("manual") ?? false);
   ipcMain.handle("satellite:cancel-launch", () => core?.launcher.cancelScheduled() ?? false);
   ipcMain.handle("satellite:get-system-stats", () => core?.monitor.getSnapshot());
+  ipcMain.handle("satellite:get-activity", () => structuredClone(recentActivity));
   ipcMain.handle("satellite:export-diagnostics", async () => {
     const result = await dialog.showSaveDialog({ title: "Export ARC Satellite Diagnostics", defaultPath: `arc-satellite-diagnostics-${new Date().toISOString().slice(0, 10)}.json`, filters: [{ name: "JSON", extensions: ["json"] }] });
     if (result.canceled || !result.filePath) return false;

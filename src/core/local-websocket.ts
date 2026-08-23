@@ -60,12 +60,14 @@ export class LocalWebSocketTransport extends EventEmitter {
   private accept(socket: WebSocket): void {
     if (this.appSocket && this.appSocket !== socket) this.appSocket.close(4000, "superseded by a newer app connection");
     this.appSocket = socket;
+    this.events.log("system", { type: "local-app-connected", transport: "websocket" });
     this.emit("app-state", true);
     socket.on("message", (data) => this.receive(socket, data.toString()));
     socket.once("close", () => {
       if (this.appSocket === socket) {
         this.appSocket = undefined;
         this.localSessionId = undefined;
+        this.events.log("system", { type: "local-app-disconnected", transport: "websocket" });
         this.emit("app-state", false);
         this.emit("app-disconnected");
       }

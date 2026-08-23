@@ -21,6 +21,7 @@ export interface SystemSnapshot {
   battery_has_battery?: boolean;
   battery_percent?: number;
   battery_charging?: boolean;
+  battery_ac_connected?: boolean;
   gpus?: Array<{ model: string; vendor?: string; temperature_c?: number; memory_used_mb?: number; memory_total_mb?: number }>;
   uptime_seconds: number;
   processes: Record<string, boolean>;
@@ -88,6 +89,7 @@ export class SystemMonitor extends EventEmitter {
       battery_has_battery: batteryResult?.hasBattery,
       battery_percent: batteryResult?.hasBattery ? batteryResult.percent : undefined,
       battery_charging: batteryResult?.hasBattery ? batteryResult.isCharging : undefined,
+      battery_ac_connected: batteryResult?.hasBattery ? batteryResult.acConnected : undefined,
       gpus: graphicsResult?.controllers.map((gpu) => ({ model: gpu.model || "Unknown GPU", vendor: gpu.vendor, temperature_c: gpu.temperatureGpu && gpu.temperatureGpu > 0 ? gpu.temperatureGpu : undefined, memory_used_mb: gpu.memoryUsed, memory_total_mb: gpu.vram ?? undefined })),
       uptime_seconds: time.uptime,
       processes: Object.fromEntries(monitored),

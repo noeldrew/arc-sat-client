@@ -29,6 +29,7 @@ export class SatelliteCore {
   private config: SatelliteConfig;
   private cloudSessionId?: string;
   private customer?: Record<string, unknown>;
+  private lastHealthAlert?: boolean;
   private status: SatelliteStatus = { cloud: "stopped", localTransport: "stopped", localAppConnected: false };
 
   constructor(private readonly options: SatelliteCoreOptions) {
@@ -96,7 +97,13 @@ export class SatelliteCore {
       this.updateStatus({ localSessionId: undefined });
     });
     this.monitor.on("snapshot", (snapshot: SystemSnapshot) => this.events.emit("system-stats", snapshot));
-    this.monitor.on("health", (reasons: string[]) => this.cloud.send({ type: "health_status", client_id: this.config.clientId, alert: reasons.length > 0, reasons }));
+    this.monitor.on("health", (reasons: string[]) => {
+      const alert = reasons.length > 0;
+      if (this.lastHealthAlert === undefined) { this.lastHealthAlert = alert; return; }
+      if (alert === this.lastHealthAlert) return;
+      this.lastHealthAlert = alert;
+      this.cloud.send({ type: "health_status", client_id: this.config.clientId, alert, reasons });
+    });
     this.monitor.on("process-change", ({ name, running, at }: { name: string; running: boolean; at: string }) => {
       this.cloud.send({ type: "system_alert", client_id: this.config.clientId, process: name, status: running ? "running" : "stopped", timestamp: at });
       if (!running) this.launcher.relaunchAfterProcessStop();

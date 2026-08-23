@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld("arcSatellite", {
   getConfig: () => ipcRenderer.invoke("satellite:get-config"),
   getBranding: () => ipcRenderer.invoke("satellite:get-branding"),
   getSystemStats: () => ipcRenderer.invoke("satellite:get-system-stats"),
+  getActivity: () => ipcRenderer.invoke("satellite:get-activity"),
   launchApp: () => ipcRenderer.invoke("satellite:launch-app"),
   cancelLaunch: () => ipcRenderer.invoke("satellite:cancel-launch"),
   exportDiagnostics: () => ipcRenderer.invoke("satellite:export-diagnostics"),
