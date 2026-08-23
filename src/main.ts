@@ -4,6 +4,7 @@ import path from "node:path";
 import { ConfigStore, SatelliteConfigSchema } from "./core/config";
 import type { ActivityEntry, SatelliteStatus } from "./core/events";
 import { SatelliteCore } from "./core/satellite-core";
+import { BrandingService } from "./core/branding";
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -48,8 +49,12 @@ const startCore = async (): Promise<void> => {
   core.events.on("status", (status: SatelliteStatus) => { latestStatus = status; sendToRenderers("satellite:status", status); });
   core.events.on("activity", (entry: ActivityEntry) => sendToRenderers("satellite:activity", entry));
   core.events.on("config", (next) => sendToRenderers("satellite:config", next));
+  core.events.on("system-stats", (stats) => sendToRenderers("satellite:system-stats", stats));
   ipcMain.handle("satellite:get-status", () => latestStatus);
   ipcMain.handle("satellite:get-config", () => core?.getConfig());
+  ipcMain.handle("satellite:get-branding", () => new BrandingService(path.join(app.getPath("userData"), "branding-cache.json")).load(core!.getConfig().serverUrl));
+  ipcMain.handle("satellite:launch-app", () => core?.launcher.launch("manual") ?? false);
+  ipcMain.handle("satellite:get-system-stats", () => core?.monitor.getSnapshot());
   ipcMain.handle("satellite:update-config", async (_event, raw) => {
     const next = SatelliteConfigSchema.parse(raw);
     await core?.updateConfig(next);

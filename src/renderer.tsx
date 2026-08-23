@@ -1,38 +1,59 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
+import type { SatelliteConfig } from "./core/config";
+import type { ActivityEntry, SatelliteStatus } from "./core/events";
+import type { SystemSnapshot } from "./core/system-monitor";
 import "./styles.css";
 
-const pages = ["Overview", "Trigger Events", "Activity Log", "Settings", "App Launcher", "System Monitor"];
+const pages = ["Overview", "Trigger Events", "Activity Log", "Settings", "App Launcher", "System Monitor"] as const;
+type Page = typeof pages[number];
+const Badge = ({ good, children }: { good?: boolean; children: React.ReactNode }) => <span className={`badge ${good ? "good" : "bad"}`}>● {children}</span>;
+const Field = ({ label, children }: { label: string; children: React.ReactNode }) => <label className="field"><span>{label}</span>{children}</label>;
+const Stat = ({ label, value, detail }: { label: string; value: React.ReactNode; detail: string }) => <article className="stat"><small>{label}</small><strong>{value}</strong><span>{detail}</span></article>;
+
+function ActivityRows({ activity }: { activity: ActivityEntry[] }): React.JSX.Element {
+  if (!activity.length) return <div className="empty">No activity recorded yet.</div>;
+  return <div className="activity-list">{activity.map((entry, index) => <div className="activity-row" key={`${entry.at}-${index}`}><time>{new Date(entry.at).toLocaleTimeString()}</time><span className={`direction ${entry.direction}`}>{entry.direction}</span><code>{String(entry.message.type ?? entry.message.detail ?? "event")}</code><span>{JSON.stringify(entry.message)}</span></div>)}</div>;
+}
+
+function Overview({ status, stats, activity }: { status: SatelliteStatus; stats?: SystemSnapshot; activity: ActivityEntry[] }): React.JSX.Element {
+  return <><div className="headline"><div><h1>Satellite overview</h1><p>Live connectivity, sessions and local transport health.</p></div></div><div className="cards"><Stat label="ARC SERVER" value={status.cloud} detail="Authenticated cloud WebSocket" /><Stat label="LOCAL APP" value={status.localAppConnected ? "Connected" : "Not connected"} detail={status.transportError ?? "WebSocket · localhost"} /><Stat label="ACTIVE SESSION" value={status.cloudSessionId ? status.cloudSessionId.slice(0, 8) : "None"} detail="RFID session routing" /><Stat label="CPU" value={stats ? `${stats.cpu_percent.toFixed(0)}%` : "—"} detail="Current system load" /></div><section className="panel"><div className="section-title"><h2>Recent activity</h2><span>{activity.length} messages</span></div><ActivityRows activity={activity.slice(0, 8)} /></section></>;
+}
+
+function Triggers({ config, save }: { config: SatelliteConfig; save: (next: SatelliteConfig) => void }): React.JSX.Element {
+  const add = (): void => { const id = window.prompt("Trigger ID (for example: game-completed)")?.trim(); if (!id) return; const name = window.prompt("Display name", id)?.trim() || id; save({ ...config, triggers: [...config.triggers, { id, name, description: "" }] }); };
+  return <><div className="headline row"><div><h1>Trigger Events</h1><p>Events registered by the local application and this client.</p></div><button className="primary" onClick={add}>＋ Add Trigger</button></div><div className="trigger-grid">{config.triggers.map((trigger) => <article className="trigger" key={trigger.id}><div><h3>{trigger.name}</h3><code>{trigger.id}</code><p>{trigger.description || "No description"}</p></div><button className="icon" onClick={() => save({ ...config, triggers: config.triggers.filter((item) => item.id !== trigger.id) })}>Delete</button></article>)}</div>{!config.triggers.length && <div className="empty panel">Connect an ARC SDK application or add a trigger manually.</div>}</>;
+}
+
+function Settings({ config, save }: { config: SatelliteConfig; save: (next: SatelliteConfig) => Promise<void> }): React.JSX.Element {
+  const [draft, setDraft] = useState(config); const [saved, setSaved] = useState(false); useEffect(() => setDraft(config), [config]);
+  const update = <K extends keyof SatelliteConfig>(key: K, value: SatelliteConfig[K]): void => setDraft({ ...draft, [key]: value });
+  return <><div className="headline"><h1>Settings</h1><p>Device identity, ARC server and local transport configuration.</p></div><section className="panel form"><h2>Identity and deployment</h2><div className="form-grid"><Field label="Device Name"><input value={draft.name} onChange={(e) => update("name", e.target.value)} /></Field><Field label="Client ID"><input className="mono" value={draft.clientId} onChange={(e) => update("clientId", e.target.value)} /></Field><Field label="Site ID"><input className="mono" value={draft.siteId ?? ""} onChange={(e) => update("siteId", e.target.value || undefined)} /></Field><Field label="Zone"><input value={draft.zone} onChange={(e) => update("zone", e.target.value)} /></Field></div></section><section className="panel form"><h2>Connections</h2><div className="form-grid"><Field label="ARC Server URL"><input value={draft.serverUrl} onChange={(e) => update("serverUrl", e.target.value)} /></Field><Field label="API Token"><input type="password" value={draft.apiToken ?? ""} onChange={(e) => update("apiToken", e.target.value || undefined)} /></Field><Field label="Local WebSocket Port"><input type="number" value={draft.localWsPort} onChange={(e) => update("localWsPort", Number(e.target.value))} /></Field></div></section><div className="actions"><button className="primary" onClick={() => void save(draft).then(() => { setSaved(true); setTimeout(() => setSaved(false), 2000); })}>Save & Reconnect</button>{saved && <span className="success">Saved</span>}</div></>;
+}
+
+function Launcher({ config, save }: { config: SatelliteConfig; save: (next: SatelliteConfig) => Promise<void> }): React.JSX.Element {
+  const [draft, setDraft] = useState(config.launcher); useEffect(() => setDraft(config.launcher), [config]);
+  const options: Array<["onConnect" | "onSession" | "queueSession" | "autoRelaunch", string]> = [["onConnect", "Launch when ARC connects"], ["onSession", "Launch when a session starts"], ["queueSession", "Queue sessions while app is offline"], ["autoRelaunch", "Relaunch when monitored process stops"]];
+  return <><div className="headline"><h1>App Launcher</h1><p>Launch and supervise the local attraction application.</p></div><section className="panel form"><div className="form-grid"><Field label="Launch Type"><select value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value as typeof draft.type })}><option value="none">None</option><option value="file">Application file</option><option value="script">Startup script</option></select></Field><Field label="Application Path"><input value={draft.path} onChange={(e) => setDraft({ ...draft, path: e.target.value })} /></Field><Field label="Startup Script"><textarea value={draft.script} onChange={(e) => setDraft({ ...draft, script: e.target.value })} /></Field><Field label="Launch Delay"><input type="number" value={draft.delaySeconds} onChange={(e) => setDraft({ ...draft, delaySeconds: Number(e.target.value) })} /></Field></div><div className="checks">{options.map(([key, label]) => <label key={key}><input type="checkbox" checked={draft[key]} onChange={(e) => setDraft({ ...draft, [key]: e.target.checked })} />{label}</label>)}</div></section><div className="actions"><button className="primary" onClick={() => void save({ ...config, launcher: draft })}>Save Options</button><button onClick={() => void window.arcSatellite.launchApp()}>▶ Launch Now</button></div></>;
+}
+
+function Monitor({ stats, config, save }: { stats?: SystemSnapshot; config: SatelliteConfig; save: (next: SatelliteConfig) => Promise<void> }): React.JSX.Element {
+  const [name, setName] = useState(""); const add = (): void => { if (name.trim()) { void save({ ...config, monitoring: { ...config.monitoring, processes: [...config.monitoring.processes, name.trim()] } }); setName(""); } };
+  return <><div className="headline"><h1>System Monitor</h1><p>Hardware health and supervised attraction processes.</p></div><div className="cards monitor"><Stat label="CPU LOAD" value={stats ? `${stats.cpu_percent.toFixed(1)}%` : "—"} detail={stats?.cpu_freq_ghz ? `${stats.cpu_freq_ghz.toFixed(2)} GHz` : "Awaiting sample"} /><Stat label="MEMORY" value={stats ? `${stats.ram_percent.toFixed(1)}%` : "—"} detail={stats ? `${stats.ram_used_mb} / ${stats.ram_total_mb} MB` : "Awaiting sample"} /><Stat label="DISK" value={stats?.disk_percent !== undefined ? `${stats.disk_percent.toFixed(1)}%` : "—"} detail={stats ? `${stats.os} ${stats.os_version}` : "Awaiting sample"} /></div><section className="panel"><div className="section-title"><h2>Monitored Processes</h2><div className="inline"><input placeholder="Process name" value={name} onChange={(e) => setName(e.target.value)} /><button className="primary" onClick={add}>Add</button></div></div><div className="process-list">{config.monitoring.processes.map((processName) => <div key={processName}><Badge good={stats?.processes[processName]}>{processName} · {stats?.processes[processName] ? "Running" : "Stopped"}</Badge><button className="icon" onClick={() => void save({ ...config, monitoring: { ...config.monitoring, processes: config.monitoring.processes.filter((item) => item !== processName) } })}>Remove</button></div>)}</div></section></>;
+}
 
 function App(): React.JSX.Element {
-  const [status, setStatus] = useState<import("./core/events").SatelliteStatus>({ cloud: "stopped", localTransport: "stopped", localAppConnected: false });
+  const [page, setPage] = useState<Page>("Overview"); const [status, setStatus] = useState<SatelliteStatus>({ cloud: "stopped", localTransport: "stopped", localAppConnected: false }); const [config, setConfig] = useState<SatelliteConfig>(); const [stats, setStats] = useState<SystemSnapshot>(); const [activity, setActivity] = useState<ActivityEntry[]>([]); const [brandName, setBrandName] = useState("ARC");
   useEffect(() => {
-    void window.arcSatellite.getStatus().then(setStatus);
-    return window.arcSatellite.onStatus(setStatus);
+    if (!window.arcSatellite) {
+      const demo = { schemaVersion: 1, clientId: "00000000-0000-4000-8000-000000000001", name: "ARC Satellite Preview", description: "", zone: "Attraction Zone", applicationType: "game", serverUrl: "https://arc.example", localWsPort: 25585, localHttpEnabled: true, localHttpPort: 25586, localTcpEnabled: true, localTcpPort: 25587, localUdpEnabled: true, localUdpPort: 25588, triggers: [{ id: "game-completed", name: "Game Completed", description: "Player finishes a Zombears game" }], launcher: { type: "file", path: "/Applications/Zombears.app", script: "", onConnect: true, onSession: true, delaySeconds: 5, queueSession: true, autoRelaunch: true, relaunchCooldownSeconds: 60 }, monitoring: { processes: ["Zombears"], cpuThreshold: 85, ramThreshold: 90, diskThreshold: 90, intervalSeconds: 15 } } satisfies SatelliteConfig;
+      setConfig(demo); setStatus({ cloud: "connected", localTransport: "connected", localAppConnected: false }); setStats({ cpu_percent: 24.6, cpu_per_core: [12, 37], cpu_freq_ghz: 3.2, ram_percent: 48.2, ram_used_mb: 7900, ram_total_mb: 16384, swap_percent: 0, disk_percent: 61, uptime_seconds: 123456, processes: { Zombears: false }, os: "darwin", os_version: "15.0", hostname: "arc-preview", sampled_at: new Date().toISOString() }); return;
+    }
+    void Promise.all([window.arcSatellite.getStatus(), window.arcSatellite.getConfig(), window.arcSatellite.getSystemStats(), window.arcSatellite.getBranding()]).then(([s, c, system, branding]) => { setStatus(s); setConfig(c); setStats(system); setBrandName(branding.platform_name); const root = document.documentElement.style; const values: Array<[string, string | null | undefined]> = [["--arc-primary", branding.primary_colour], ["--arc-accent", branding.accent_colour], ["--arc-bg", branding.background_colour], ["--arc-text", branding.text_colour], ["--arc-muted", branding.muted_colour], ["--arc-sidebar", branding.sidebar_background_colour], ["--arc-sidebar-text", branding.sidebar_text_colour], ["--arc-sidebar-hover", branding.sidebar_hover_background_colour], ["--arc-sidebar-selected", branding.sidebar_selected_background_colour], ["--arc-border", branding.border_colour], ["--arc-radius", branding.corner_radius_px !== null && branding.corner_radius_px !== undefined ? `${branding.corner_radius_px}px` : undefined], ["--arc-font-size", branding.base_font_size_px ? `${branding.base_font_size_px}px` : undefined]]; values.forEach(([key, value]) => { if (value) root.setProperty(key, value); }); }); const off = [window.arcSatellite.onStatus(setStatus), window.arcSatellite.onConfig(setConfig), window.arcSatellite.onSystemStats(setStats), window.arcSatellite.onActivity((entry) => setActivity((current) => [entry, ...current].slice(0, 200)))]; return () => off.forEach((dispose) => dispose());
   }, []);
-  const allGood = status.cloud === "connected" && status.localAppConnected;
-  const statusText = status.cloud === "auth-failed" ? "Authentication Failed" : allGood ? "All Systems Go" : status.localTransport === "error" ? "Local Port Error" : "App Not Connected";
-  return (
-    <main className="shell">
-      <aside className="sidebar">
-        <div className="brand"><span className="brand-mark">A</span><span>ARC Satellite</span></div>
-        <nav>{pages.map((page, index) => <button className={index === 0 ? "active" : ""} key={page}>{page}</button>)}</nav>
-        <div className="device"><small>DEVICE</small><strong>Initialising…</strong></div>
-      </aside>
-      <section className="content">
-        <header><strong>Overview</strong><span className={`status ${allGood ? "good" : ""}`}>● {statusText}</span></header>
-        <div className="page">
-          <div className="headline"><div><h1>Satellite overview</h1><p>Live connectivity, sessions and local transport health.</p></div></div>
-          <div className="cards">
-            <article><small>ARC SERVER</small><strong>{status.cloud}</strong><span>Authenticated cloud WebSocket</span></article>
-            <article><small>LOCAL APP</small><strong>{status.localAppConnected ? "Connected" : "Not connected"}</strong><span>{status.transportError ?? "WebSocket · localhost:25585"}</span></article>
-            <article><small>ACTIVE SESSION</small><strong>{status.cloudSessionId ? status.cloudSessionId.slice(0, 8) : "None"}</strong><span>Ready for an RFID interaction</span></article>
-          </div>
-          <article className="panel"><h2>Satellite core</h2><p>The ARC cloud and localhost application connections run independently of this sandboxed interface, with explicit transport state and validated protocol messages.</p></article>
-        </div>
-      </section>
-    </main>
-  );
+  const save = async (next: SatelliteConfig): Promise<void> => { const saved = await window.arcSatellite.updateConfig(next); setConfig(saved); }; const allGood = status.cloud === "connected" && status.localAppConnected;
+  const body = useMemo(() => { if (!config) return <div className="empty">Loading configuration…</div>; switch (page) { case "Overview": return <Overview status={status} stats={stats} activity={activity} />; case "Trigger Events": return <Triggers config={config} save={(next) => void save(next)} />; case "Activity Log": return <><div className="headline"><h1>Activity Log</h1><p>Validated traffic across both satellite boundaries.</p></div><section className="panel"><ActivityRows activity={activity} /></section></>; case "Settings": return <Settings config={config} save={save} />; case "App Launcher": return <Launcher config={config} save={save} />; case "System Monitor": return <Monitor stats={stats} config={config} save={save} />; } }, [page, config, status, stats, activity]);
+  return <main className="shell"><aside className="sidebar"><div className="brand"><span className="brand-mark">A</span><span>{brandName} Satellite</span></div><nav>{pages.map((item) => <button className={page === item ? "active" : ""} key={item} onClick={() => setPage(item)}>{item}</button>)}</nav><div className="device"><small>DEVICE</small><strong>{config?.name ?? "Initialising…"}</strong><span>{config?.clientId.slice(0, 8).toUpperCase()}</span></div></aside><section className="content"><header><strong>{page}</strong><Badge good={allGood}>{allGood ? "All Systems Go" : status.localTransport === "error" ? "Local Port Error" : status.cloud === "auth-failed" ? "Authentication Failed" : "App Not Connected"}</Badge></header><div className="page">{body}</div></section></main>;
 }
 
 createRoot(document.getElementById("root")!).render(<React.StrictMode><App /></React.StrictMode>);
