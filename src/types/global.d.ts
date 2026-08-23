@@ -5,6 +5,12 @@ declare global {
     arcSatellite: {
       platform: string;
       version: string;
+      getStatus(): Promise<import("../core/events").SatelliteStatus>;
+      getConfig(): Promise<import("../core/config").SatelliteConfig>;
+      updateConfig(config: import("../core/config").SatelliteConfig): Promise<import("../core/config").SatelliteConfig>;
+      onStatus(listener: (value: import("../core/events").SatelliteStatus) => void): () => void;
+      onActivity(listener: (value: import("../core/events").ActivityEntry) => void): () => void;
+      onConfig(listener: (value: import("../core/config").SatelliteConfig) => void): () => void;
     };
   }
 }

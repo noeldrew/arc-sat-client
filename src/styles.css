@@ -25,6 +25,7 @@ nav button.active { background: var(--arc-primary); color: white; }
 .content { min-width: 0; }
 header { height: 57px; padding: 0 28px; background: white; border-bottom: 1px solid var(--arc-border); display: flex; align-items: center; justify-content: space-between; }
 .status { color: #c2413b; background: #fff1f0; border: 1px solid #ffd2cf; border-radius: 999px; padding: 6px 11px; font-size: 12px; }
+.status.good { color: #15803d; background: #f0fdf4; border-color: #bbf7d0; }
 .page { padding: 28px; }
 .headline h1 { margin: 0 0 7px; font-size: 22px; }
 .headline p { margin: 0; color: #6b7892; }
