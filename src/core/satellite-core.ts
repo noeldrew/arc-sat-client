@@ -37,7 +37,7 @@ export class SatelliteCore {
     this.cloud = new CloudClient(this.config, this.events);
     this.local = new LocalWebSocketTransport(this.events);
     this.monitor = new SystemMonitor(() => this.config, this.events);
-    this.launcher = new AppLauncher(() => this.config, this.events);
+    this.launcher = new AppLauncher(() => this.config, this.events, () => this.local.isAppConnected() || this.monitor.isAnyMonitoredProcessRunning());
     this.aux = new AuxTransports((message, source) => this.handleAlternative(message, source), this.events);
     this.ugc = new UgcService(() => this.config);
     this.wire();
@@ -48,6 +48,7 @@ export class SatelliteCore {
     catch (error) { this.events.log("error", { source: "local-websocket", detail: error instanceof Error ? error.message : String(error) }); }
     await this.aux.start({ httpEnabled: this.config.localHttpEnabled, httpPort: this.config.localHttpPort, tcpEnabled: this.config.localTcpEnabled, tcpPort: this.config.localTcpPort, udpEnabled: this.config.localUdpEnabled, udpPort: this.config.localUdpPort });
     this.monitor.start();
+    if (this.config.launcher.onClientStart) this.launcher.schedule("client-start");
     this.cloud.start();
   }
 
@@ -232,7 +233,7 @@ export const createTestConfig = (patch: Partial<SatelliteConfig> = {}): Satellit
   schemaVersion: 1, clientId: randomUUID(), name: "ARC Client", description: "", zone: "", applicationType: "",
   serverUrl: "http://localhost:8080", localWsPort: 25585, localHttpEnabled: true, localHttpPort: 25586,
   localTcpEnabled: true, localTcpPort: 25587, localUdpEnabled: true, localUdpPort: 25588, triggers: [],
-  launcher: { type: "none", path: "", script: "", onConnect: false, onSession: false, delaySeconds: 5, queueSession: true, autoRelaunch: false, relaunchCooldownSeconds: 60 },
+  launcher: { type: "none", path: "", script: "", onConnect: false, onClientStart: false, clientStartDelaySeconds: 5, onSession: false, delaySeconds: 5, queueSession: true, autoRelaunch: false, relaunchCooldownSeconds: 60 },
   monitoring: { processes: [], cpuThreshold: 85, ramThreshold: 90, diskThreshold: 90, intervalSeconds: 15 },
   ...patch,
 });

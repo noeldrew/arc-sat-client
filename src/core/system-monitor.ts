@@ -55,6 +55,7 @@ export class SystemMonitor extends EventEmitter {
 
   stop(): void { if (this.timer) clearInterval(this.timer); this.timer = undefined; }
   getSnapshot(): SystemSnapshot | undefined { return this.lastSnapshot ? structuredClone(this.lastSnapshot) : undefined; }
+  isAnyMonitoredProcessRunning(): boolean { return Object.values(this.lastSnapshot?.processes ?? {}).some(Boolean); }
 
   async sample(): Promise<SystemSnapshot> {
     const config = this.getConfig();

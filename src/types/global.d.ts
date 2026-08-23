@@ -16,6 +16,8 @@ declare global {
       exportTemplate(): Promise<boolean>;
       importTemplate(): Promise<import("../core/config").SatelliteConfig | undefined>;
       chooseApplication(): Promise<string | undefined>;
+      detectProcess(selectedPath: string): Promise<string>;
+      getZones(): Promise<{ available: boolean; zones: Array<{ id: string; name: string }>; reason?: string }>;
       getPathForFile(file: File): string;
       updateConfig(config: import("../core/config").SatelliteConfig): Promise<import("../core/config").SatelliteConfig>;
       onStatus(listener: (value: import("../core/events").SatelliteStatus) => void): () => void;

@@ -20,6 +20,8 @@ contextBridge.exposeInMainWorld("arcSatellite", {
   exportTemplate: () => ipcRenderer.invoke("satellite:export-template"),
   importTemplate: () => ipcRenderer.invoke("satellite:import-template"),
   chooseApplication: () => ipcRenderer.invoke("satellite:choose-application"),
+  detectProcess: (selectedPath: string) => ipcRenderer.invoke("satellite:detect-process", selectedPath),
+  getZones: () => ipcRenderer.invoke("satellite:get-zones"),
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   updateConfig: (config: unknown) => ipcRenderer.invoke("satellite:update-config", config),
   onStatus: (listener: (value: unknown) => void) => subscribe("satellite:status", listener),

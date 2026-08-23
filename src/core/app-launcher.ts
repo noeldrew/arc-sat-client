@@ -9,11 +9,11 @@ export class AppLauncher extends EventEmitter {
   private lastLaunchAt = 0;
   private pending?: NodeJS.Timeout;
 
-  constructor(private getConfig: () => SatelliteConfig, private readonly events: SatelliteEvents) { super(); }
+  constructor(private getConfig: () => SatelliteConfig, private readonly events: SatelliteEvents, private readonly isAppRunning: () => boolean = () => false) { super(); }
 
-  schedule(reason: "cloud-connect" | "session" | "process-stopped"): void {
+  schedule(reason: "client-start" | "cloud-connect" | "session" | "process-stopped"): void {
     if (this.pending) clearTimeout(this.pending);
-    const delay = this.getConfig().launcher.delaySeconds;
+    const delay = reason === "client-start" ? this.getConfig().launcher.clientStartDelaySeconds : this.getConfig().launcher.delaySeconds;
     this.events.log("system", { type: "app-launch-scheduled", reason, delaySeconds: delay });
     this.emit("scheduled", { reason, delaySeconds: delay });
     this.pending = setTimeout(() => { this.pending = undefined; this.launch(reason); }, delay * 1_000);
@@ -21,9 +21,13 @@ export class AppLauncher extends EventEmitter {
 
   cancelScheduled(): boolean { if (!this.pending) return false; clearTimeout(this.pending); this.pending = undefined; this.events.log("system", { type: "app-launch-cancelled" }); this.emit("cancelled"); return true; }
 
-  launch(reason: "manual" | "cloud-connect" | "session" | "process-stopped" = "manual"): boolean {
+  launch(reason: "manual" | "client-start" | "cloud-connect" | "session" | "process-stopped" = "manual"): boolean {
     const config = this.getConfig().launcher;
     if (config.type === "none") return false;
+    if (reason !== "manual" && this.isAppRunning()) {
+      this.events.log("system", { type: "app-launch-skipped", reason, detail: "Application is already running" });
+      return false;
+    }
     try {
       let command: string;
       let args: string[];

@@ -29,6 +29,8 @@ export const SatelliteConfigSchema = z.object({
     path: z.string().default(""),
     script: z.string().default(""),
     onConnect: z.boolean().default(false),
+    onClientStart: z.boolean().default(false),
+    clientStartDelaySeconds: z.number().int().min(0).max(300).default(5),
     onSession: z.boolean().default(false),
     delaySeconds: z.number().int().min(0).max(300).default(5),
     queueSession: z.boolean().default(true),
@@ -50,7 +52,8 @@ export const migrateLegacyConfig = (raw: Record<string, unknown>): SatelliteConf
   if (raw.schemaVersion === 1) return SatelliteConfigSchema.parse(raw);
   const launcher = {
     type: raw.launcher_type ?? "none", path: raw.launcher_path ?? "", script: raw.launcher_script ?? "",
-    onConnect: raw.launcher_on_connect ?? false, onSession: raw.launcher_on_session ?? false,
+    onConnect: raw.launcher_on_connect ?? false, onClientStart: raw.launcher_on_client_start ?? false,
+    clientStartDelaySeconds: raw.launcher_client_start_delay ?? 5, onSession: raw.launcher_on_session ?? false,
     delaySeconds: raw.launcher_delay ?? 5, queueSession: raw.launcher_queue_session ?? true,
     autoRelaunch: raw.launcher_auto_relaunch ?? false, relaunchCooldownSeconds: raw.launcher_relaunch_cooldown ?? 60,
   };

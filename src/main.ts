@@ -89,6 +89,26 @@ const startCore = async (): Promise<void> => {
     const result = await dialog.showOpenDialog({ title: "Choose Application or File", properties: ["openFile"] });
     return result.canceled ? undefined : result.filePaths[0];
   });
+  ipcMain.handle("satellite:detect-process", async (_event, selectedPath: string) => {
+    if (process.platform === "darwin" && selectedPath.toLowerCase().endsWith(".app")) {
+      try {
+        const plist = await readFile(path.join(selectedPath, "Contents", "Info.plist"), "utf8");
+        const match = plist.match(/<key>CFBundleExecutable<\/key>\s*<string>([^<]+)<\/string>/);
+        if (match?.[1]) return match[1];
+      } catch { /* Fall back to the application bundle name. */ }
+    }
+    return path.basename(selectedPath, path.extname(selectedPath));
+  });
+  ipcMain.handle("satellite:get-zones", async () => {
+    const config = core!.getConfig();
+    if (!config.siteId || !config.apiToken) return { available: false, zones: [], reason: "Set a Site ID and API token to load zones." };
+    try {
+      const response = await fetch(`${config.serverUrl.replace(/\/$/, "")}/api/v1/venues/sites/${config.siteId}/zones`, { headers: { Authorization: `Bearer ${config.apiToken}` }, signal: AbortSignal.timeout(8_000) });
+      if (!response.ok) return { available: false, zones: [], reason: `The server did not make zones available (${response.status}).` };
+      const raw = await response.json() as Array<{ id: string; name: string }>;
+      return { available: true, zones: raw.map((zone) => ({ id: zone.id, name: zone.name })) };
+    } catch (error) { return { available: false, zones: [], reason: error instanceof Error ? error.message : String(error) }; }
+  });
   ipcMain.handle("satellite:update-config", async (_event, raw) => {
     const next = SatelliteConfigSchema.parse(raw);
     await core?.updateConfig(next);
