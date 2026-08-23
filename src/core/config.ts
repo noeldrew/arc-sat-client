@@ -46,6 +46,28 @@ export const SatelliteConfigSchema = z.object({
 
 export type SatelliteConfig = z.infer<typeof SatelliteConfigSchema>;
 
+export const migrateLegacyConfig = (raw: Record<string, unknown>): SatelliteConfig => {
+  if (raw.schemaVersion === 1) return SatelliteConfigSchema.parse(raw);
+  const launcher = {
+    type: raw.launcher_type ?? "none", path: raw.launcher_path ?? "", script: raw.launcher_script ?? "",
+    onConnect: raw.launcher_on_connect ?? false, onSession: raw.launcher_on_session ?? false,
+    delaySeconds: raw.launcher_delay ?? 5, queueSession: raw.launcher_queue_session ?? true,
+    autoRelaunch: raw.launcher_auto_relaunch ?? false, relaunchCooldownSeconds: raw.launcher_relaunch_cooldown ?? 60,
+  };
+  const monitoring = {
+    processes: raw.monitored_processes ?? [], cpuThreshold: raw.health_cpu_threshold ?? 85,
+    ramThreshold: raw.health_ram_threshold ?? 90, diskThreshold: raw.health_disk_threshold ?? 90, intervalSeconds: 15,
+  };
+  return SatelliteConfigSchema.parse({
+    schemaVersion: 1, clientId: raw.client_id, name: raw.name, description: raw.description,
+    installationId: raw.installation_id || undefined, siteId: raw.site_id || undefined, zone: raw.zone,
+    applicationType: raw.application_type, serverUrl: raw.server_url, apiToken: raw.api_token || undefined,
+    localWsPort: raw.local_ws_port, localHttpEnabled: raw.local_http_enabled, localHttpPort: raw.local_http_port,
+    localTcpEnabled: raw.local_tcp_enabled, localTcpPort: raw.local_tcp_port, localUdpEnabled: raw.local_udp_enabled,
+    localUdpPort: raw.local_udp_port, triggers: raw.triggers, launcher, monitoring,
+  });
+};
+
 export class ConfigStore {
   constructor(private readonly filePath = path.join(app.getPath("userData"), "config.json")) {}
 
@@ -56,7 +78,7 @@ export class ConfigStore {
         raw.apiToken = safeStorage.decryptString(Buffer.from(raw.apiTokenEncrypted, "base64"));
       }
       delete raw.apiTokenEncrypted;
-      return SatelliteConfigSchema.parse(raw);
+      return migrateLegacyConfig(raw);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") console.warn("Config load failed", error);
       return SatelliteConfigSchema.parse({});

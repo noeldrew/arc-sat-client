@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld("arcSatellite", {
   getBranding: () => ipcRenderer.invoke("satellite:get-branding"),
   getSystemStats: () => ipcRenderer.invoke("satellite:get-system-stats"),
   launchApp: () => ipcRenderer.invoke("satellite:launch-app"),
+  exportDiagnostics: () => ipcRenderer.invoke("satellite:export-diagnostics"),
   updateConfig: (config: unknown) => ipcRenderer.invoke("satellite:update-config", config),
   onStatus: (listener: (value: unknown) => void) => subscribe("satellite:status", listener),
   onActivity: (listener: (value: unknown) => void) => subscribe("satellite:activity", listener),

@@ -10,6 +10,7 @@ declare global {
       getBranding(): Promise<import("../core/branding").Branding>;
       getSystemStats(): Promise<import("../core/system-monitor").SystemSnapshot | undefined>;
       launchApp(): Promise<boolean>;
+      exportDiagnostics(): Promise<boolean>;
       updateConfig(config: import("../core/config").SatelliteConfig): Promise<import("../core/config").SatelliteConfig>;
       onStatus(listener: (value: import("../core/events").SatelliteStatus) => void): () => void;
       onActivity(listener: (value: import("../core/events").ActivityEntry) => void): () => void;

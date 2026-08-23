@@ -5,6 +5,9 @@ import { SatelliteEvents, SatelliteStatus } from "./events";
 import { LocalWebSocketTransport } from "./local-websocket";
 import { AppLauncher } from "./app-launcher";
 import { SystemMonitor, type SystemSnapshot } from "./system-monitor";
+import { AuxTransports } from "./aux-transports";
+import { LocalInboundSchema } from "./protocol/local";
+import { UgcService, type UgcRequest } from "./ugc-service";
 import type { CloudInboundMessage } from "./protocol/cloud";
 import type { TriggerDefinition } from "./protocol/common";
 import type { LocalInboundMessage } from "./protocol/local";
@@ -20,6 +23,9 @@ export class SatelliteCore {
   readonly local: LocalWebSocketTransport;
   readonly monitor: SystemMonitor;
   readonly launcher: AppLauncher;
+  readonly aux: AuxTransports;
+  readonly ugc: UgcService;
+  private alternativeLocalSessionId?: string;
   private config: SatelliteConfig;
   private cloudSessionId?: string;
   private customer?: Record<string, unknown>;
@@ -31,11 +37,15 @@ export class SatelliteCore {
     this.local = new LocalWebSocketTransport(this.events);
     this.monitor = new SystemMonitor(() => this.config, this.events);
     this.launcher = new AppLauncher(() => this.config, this.events);
+    this.aux = new AuxTransports((message, source) => this.handleAlternative(message, source), this.events);
+    this.ugc = new UgcService(() => this.config);
     this.wire();
   }
 
   async start(): Promise<void> {
-    await this.local.start(this.config.localWsPort);
+    try { await this.local.start(this.config.localWsPort); }
+    catch (error) { this.events.log("error", { source: "local-websocket", detail: error instanceof Error ? error.message : String(error) }); }
+    await this.aux.start({ httpEnabled: this.config.localHttpEnabled, httpPort: this.config.localHttpPort, tcpEnabled: this.config.localTcpEnabled, tcpPort: this.config.localTcpPort, udpEnabled: this.config.localUdpEnabled, udpPort: this.config.localUdpPort });
     this.monitor.start();
     this.cloud.start();
   }
@@ -44,6 +54,7 @@ export class SatelliteCore {
     this.cloud.stop();
     this.monitor.stop();
     await this.local.stop();
+    await this.aux.stop();
   }
 
   getStatus(): SatelliteStatus { return { ...this.status }; }
@@ -51,10 +62,12 @@ export class SatelliteCore {
 
   async updateConfig(config: SatelliteConfig): Promise<void> {
     const oldPort = this.config.localWsPort;
+    const auxChanged = this.config.localHttpEnabled !== config.localHttpEnabled || this.config.localHttpPort !== config.localHttpPort || this.config.localTcpEnabled !== config.localTcpEnabled || this.config.localTcpPort !== config.localTcpPort || this.config.localUdpEnabled !== config.localUdpEnabled || this.config.localUdpPort !== config.localUdpPort;
     this.config = config;
     await this.options.saveConfig(config);
     this.cloud.updateConfig(config);
     if (oldPort !== config.localWsPort) await this.local.start(config.localWsPort);
+    if (auxChanged) await this.aux.start({ httpEnabled: config.localHttpEnabled, httpPort: config.localHttpPort, tcpEnabled: config.localTcpEnabled, tcpPort: config.localTcpPort, udpEnabled: config.localUdpEnabled, udpPort: config.localUdpPort });
   }
 
   private wire(): void {
@@ -64,7 +77,7 @@ export class SatelliteCore {
       if (ack.api_token) { this.config.apiToken = ack.api_token; changed = true; }
       if (ack.canonical_client_id) { this.config.clientId = ack.canonical_client_id; changed = true; }
       if (changed) void this.options.saveConfig(this.config);
-      if (this.config.launcher.onConnect && !this.local.isAppConnected()) this.launcher.launch("cloud-connect");
+      if (this.config.launcher.onConnect && !this.local.isAppConnected()) this.launcher.schedule("cloud-connect");
     });
     this.cloud.on("message", (message: CloudInboundMessage) => this.handleCloud(message));
     this.local.on("state", (localTransport) => this.updateStatus({ localTransport }));
@@ -123,13 +136,17 @@ export class SatelliteCore {
       this.customer = customer;
       this.updateStatus({ cloudSessionId: sessionId });
       this.local.send({ ...message, type: "session-start", session_id: sessionId });
-      if (this.config.launcher.onSession && !this.local.isAppConnected()) this.launcher.launch("session");
+      if (this.config.launcher.onSession && !this.local.isAppConnected()) this.launcher.schedule("session");
     } else {
       this.local.send(message);
     }
   }
 
   private handleLocal(message: LocalInboundMessage): void {
+    if (message.type === "ugc-upload") {
+      void this.ugc.upload(message as UgcRequest, typeof this.customer?.id === "string" ? this.customer.id : undefined).then((response) => this.local.send(response as never));
+      return;
+    }
     if (message.type === "register-triggers") { this.mergeTriggers(message.triggers); return; }
     if (message.type === "trigger") {
       const payload = { ...(message.payload ?? {}) } as Record<string, unknown>;
@@ -154,6 +171,21 @@ export class SatelliteCore {
       if (this.cloudSessionId) this.sendSessionEnded(this.cloudSessionId);
       this.clearSession();
     }
+  }
+
+  private async handleAlternative(raw: unknown, source: "http" | "tcp" | "udp"): Promise<Record<string, unknown>> {
+    const message = LocalInboundSchema.parse(raw);
+    if (message.type === "hello") {
+      this.alternativeLocalSessionId = randomUUID(); this.mergeTriggers(message.triggers ?? []);
+      return { type: "ack", status: "ok", session_id: this.cloudSessionId ?? this.alternativeLocalSessionId, transport: source };
+    }
+    if (message.type === "ping") return { type: "pong" };
+    if (message.type === "ugc-upload") return this.ugc.upload(message as UgcRequest, typeof this.customer?.id === "string" ? this.customer.id : undefined);
+    this.handleLocal(message);
+    if (message.type === "trigger") return { type: "ack", ref: "trigger", trigger_id: message.trigger_id, session_id: this.cloudSessionId ?? this.alternativeLocalSessionId };
+    if (message.type === "register-triggers") return { type: "ack", ref: "register-triggers", ok: true };
+    if (message.type === "close-session" || message.type === "session-ended") return { type: "ack", ref: message.type, ok: true };
+    return { type: "ack", ref: message.type, ok: true };
   }
 
   private mergeTriggers(incoming: TriggerDefinition[]): void {

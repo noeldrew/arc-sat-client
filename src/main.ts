@@ -1,10 +1,11 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import started from "electron-squirrel-startup";
 import path from "node:path";
 import { ConfigStore, SatelliteConfigSchema } from "./core/config";
 import type { ActivityEntry, SatelliteStatus } from "./core/events";
 import { SatelliteCore } from "./core/satellite-core";
 import { BrandingService } from "./core/branding";
+import { Diagnostics } from "./core/diagnostics";
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -44,10 +45,11 @@ const createWindow = async (): Promise<void> => {
 
 const startCore = async (): Promise<void> => {
   const store = new ConfigStore();
+  const diagnostics = new Diagnostics(path.join(app.getPath("userData"), "diagnostics"));
   const config = await store.load();
   core = new SatelliteCore({ config, saveConfig: (next) => store.save(next) });
   core.events.on("status", (status: SatelliteStatus) => { latestStatus = status; sendToRenderers("satellite:status", status); });
-  core.events.on("activity", (entry: ActivityEntry) => sendToRenderers("satellite:activity", entry));
+  core.events.on("activity", (entry: ActivityEntry) => { sendToRenderers("satellite:activity", entry); void diagnostics.append(entry); });
   core.events.on("config", (next) => sendToRenderers("satellite:config", next));
   core.events.on("system-stats", (stats) => sendToRenderers("satellite:system-stats", stats));
   ipcMain.handle("satellite:get-status", () => latestStatus);
@@ -55,6 +57,11 @@ const startCore = async (): Promise<void> => {
   ipcMain.handle("satellite:get-branding", () => new BrandingService(path.join(app.getPath("userData"), "branding-cache.json")).load(core!.getConfig().serverUrl));
   ipcMain.handle("satellite:launch-app", () => core?.launcher.launch("manual") ?? false);
   ipcMain.handle("satellite:get-system-stats", () => core?.monitor.getSnapshot());
+  ipcMain.handle("satellite:export-diagnostics", async () => {
+    const result = await dialog.showSaveDialog({ title: "Export ARC Satellite Diagnostics", defaultPath: `arc-satellite-diagnostics-${new Date().toISOString().slice(0, 10)}.json`, filters: [{ name: "JSON", extensions: ["json"] }] });
+    if (result.canceled || !result.filePath) return false;
+    await diagnostics.export(result.filePath, core!.getConfig(), core!.getStatus(), core!.monitor.getSnapshot()); return true;
+  });
   ipcMain.handle("satellite:update-config", async (_event, raw) => {
     const next = SatelliteConfigSchema.parse(raw);
     await core?.updateConfig(next);

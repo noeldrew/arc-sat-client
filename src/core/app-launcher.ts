@@ -10,6 +10,13 @@ export class AppLauncher extends EventEmitter {
 
   constructor(private getConfig: () => SatelliteConfig, private readonly events: SatelliteEvents) { super(); }
 
+  schedule(reason: "cloud-connect" | "session" | "process-stopped"): void {
+    const delay = this.getConfig().launcher.delaySeconds;
+    this.events.log("system", { type: "app-launch-scheduled", reason, delaySeconds: delay });
+    this.emit("scheduled", { reason, delaySeconds: delay });
+    setTimeout(() => this.launch(reason), delay * 1_000);
+  }
+
   launch(reason: "manual" | "cloud-connect" | "session" | "process-stopped" = "manual"): boolean {
     const config = this.getConfig().launcher;
     if (config.type === "none") return false;
@@ -45,6 +52,6 @@ export class AppLauncher extends EventEmitter {
     const config = this.getConfig().launcher;
     if (!config.autoRelaunch) return false;
     if (Date.now() - this.lastLaunchAt < config.relaunchCooldownSeconds * 1_000) return false;
-    return this.launch("process-stopped");
+    this.schedule("process-stopped"); return true;
   }
 }
