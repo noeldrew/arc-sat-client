@@ -4,7 +4,6 @@
   "private": true,
   "description": "ARC Satellite desktop client",
   "main": ".vite/build/main.js",
-  "type": "module",
   "scripts": {
     "dev": "electron-forge start",
     "build": "vite build",
