@@ -8,7 +8,7 @@ import { TriggerDefinitionSchema } from "./protocol/common";
 export const SatelliteConfigSchema = z.object({
   schemaVersion: z.literal(1).default(1),
   clientId: z.string().uuid().default(() => randomUUID()),
-  name: z.string().min(1).default("ARC Satellite"),
+  name: z.string().min(1).default("ARC Client"),
   description: z.string().default(""),
   installationId: z.string().uuid().optional(),
   siteId: z.string().uuid().optional(),
@@ -78,7 +78,12 @@ export class ConfigStore {
         raw.apiToken = safeStorage.decryptString(Buffer.from(raw.apiTokenEncrypted, "base64"));
       }
       delete raw.apiTokenEncrypted;
-      return migrateLegacyConfig(raw);
+      const config = migrateLegacyConfig(raw);
+      if (config.name === "ARC Satellite") {
+        config.name = "ARC Client";
+        await this.save(config);
+      }
+      return config;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") console.warn("Config load failed", error);
       return SatelliteConfigSchema.parse({});

@@ -65,19 +65,19 @@ const startCore = async (): Promise<void> => {
   ipcMain.handle("satellite:get-system-stats", () => core?.monitor.getSnapshot());
   ipcMain.handle("satellite:get-activity", () => structuredClone(recentActivity));
   ipcMain.handle("satellite:export-diagnostics", async () => {
-    const result = await dialog.showSaveDialog({ title: "Export ARC Satellite Diagnostics", defaultPath: `arc-satellite-diagnostics-${new Date().toISOString().slice(0, 10)}.json`, filters: [{ name: "JSON", extensions: ["json"] }] });
+    const result = await dialog.showSaveDialog({ title: "Export ARC Client Diagnostics", defaultPath: `arc-client-diagnostics-${new Date().toISOString().slice(0, 10)}.json`, filters: [{ name: "JSON", extensions: ["json"] }] });
     if (result.canceled || !result.filePath) return false;
     await diagnostics.export(result.filePath, core!.getConfig(), core!.getStatus(), core!.monitor.getSnapshot()); return true;
   });
   ipcMain.handle("satellite:export-template", async () => {
-    const result = await dialog.showSaveDialog({ title: "Save ARC Satellite Template", defaultPath: "arc-satellite-template.json", filters: [{ name: "ARC Satellite Template", extensions: ["json"] }] });
+    const result = await dialog.showSaveDialog({ title: "Save ARC Client Template", defaultPath: "arc-client-template.json", filters: [{ name: "ARC Client Template", extensions: ["json"] }] });
     if (result.canceled || !result.filePath) return false;
     const { clientId: _clientId, ...portable } = core!.getConfig();
     await writeFile(result.filePath, `${JSON.stringify({ templateVersion: 1, config: portable }, null, 2)}\n`, { mode: 0o600 });
     return true;
   });
   ipcMain.handle("satellite:import-template", async () => {
-    const result = await dialog.showOpenDialog({ title: "Import ARC Satellite Template", properties: ["openFile"], filters: [{ name: "ARC Satellite Template", extensions: ["json"] }] });
+    const result = await dialog.showOpenDialog({ title: "Import ARC Client Template", properties: ["openFile"], filters: [{ name: "ARC Client Template", extensions: ["json"] }] });
     if (result.canceled || !result.filePaths[0]) return undefined;
     const parsed = JSON.parse(await readFile(result.filePaths[0], "utf8")) as { config?: Record<string, unknown> } & Record<string, unknown>;
     const portable = parsed.config && typeof parsed.config === "object" ? parsed.config : parsed;

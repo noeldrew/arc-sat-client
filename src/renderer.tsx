@@ -5,55 +5,1182 @@ import type { ActivityEntry, SatelliteStatus } from "./core/events";
 import type { SystemSnapshot } from "./core/system-monitor";
 import "./styles.css";
 
-const pages = ["Overview", "Trigger Events", "Activity Log", "Settings", "App Launcher", "System Monitor"] as const;
-type Page = typeof pages[number];
-const Badge = ({ good, children }: { good?: boolean; children: React.ReactNode }) => <span className={`badge ${good ? "good" : "bad"}`}>● {children}</span>;
-const Field = ({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) => <label className="field"><span>{label}</span>{children}{hint && <small>{hint}</small>}</label>;
-const Stat = ({ label, value, detail }: { label: string; value: React.ReactNode; detail: string }) => <article className="stat"><small>{label}</small><strong>{value}</strong><span>{detail}</span></article>;
-const eventName = (entry: ActivityEntry): string => String(entry.message.type ?? entry.message.detail ?? "event");
+const pages = [
+  "Overview",
+  "Trigger Events",
+  "Activity Log",
+  "Settings",
+  "App Launcher",
+  "System Monitor",
+] as const;
+type Page = (typeof pages)[number];
+const Badge = ({
+  good,
+  children,
+}: {
+  good?: boolean;
+  children: React.ReactNode;
+}) => <span className={`badge ${good ? "good" : "bad"}`}>● {children}</span>;
+const ConnectionBadge = ({
+  label,
+  state,
+  connected,
+}: {
+  label: string;
+  state: string;
+  connected: boolean;
+}) => (
+  <span
+    className={`connection-badge ${connected ? "connected" : "disconnected"}`}
+  >
+    <i />
+    <strong>{label}</strong>
+    {state}
+  </span>
+);
+const Field = ({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) => (
+  <label className="field">
+    <span>{label}</span>
+    {children}
+    {hint && <small>{hint}</small>}
+  </label>
+);
+const Stat = ({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: React.ReactNode;
+  detail: string;
+}) => (
+  <article className="stat">
+    <small>{label}</small>
+    <strong>{value}</strong>
+    <span>{detail}</span>
+  </article>
+);
+const eventName = (entry: ActivityEntry): string =>
+  String(entry.message.type ?? entry.message.detail ?? "event");
 
-function ActivityRows({ activity, compact = false }: { activity: ActivityEntry[]; compact?: boolean }): React.JSX.Element {
+function ActivityRows({
+  activity,
+  compact = false,
+}: {
+  activity: ActivityEntry[];
+  compact?: boolean;
+}): React.JSX.Element {
   const [open, setOpen] = useState<string>();
-  if (!activity.length) return <div className="empty">No activity recorded yet.</div>;
-  return <div className="activity-list">{activity.map((entry, index) => { const key = `${entry.at}-${index}`; const expanded = open === key; return <div className={`activity-item ${expanded ? "expanded" : ""}`} key={key}><button className="activity-row" onClick={() => !compact && setOpen(expanded ? undefined : key)}><time>{new Date(entry.at).toLocaleTimeString()}</time><span className={`direction ${entry.direction}`}>{entry.direction}</span><code>{eventName(entry)}</code>{!compact && <span className="chevron">{expanded ? "▴" : "▾"}</span>}</button>{expanded && <div className="payload"><pre>{JSON.stringify(entry.message, null, 2)}</pre></div>}</div>; })}</div>;
+  if (!activity.length)
+    return <div className="empty">No activity recorded yet.</div>;
+  return (
+    <div className="activity-list">
+      {activity.map((entry, index) => {
+        const key = `${entry.at}-${index}`;
+        const expanded = open === key;
+        return (
+          <div
+            className={`activity-item ${expanded ? "expanded" : ""}`}
+            key={key}
+          >
+            <button
+              className="activity-row"
+              onClick={() => !compact && setOpen(expanded ? undefined : key)}
+            >
+              <time>{new Date(entry.at).toLocaleTimeString()}</time>
+              <span className={`direction ${entry.direction}`}>
+                {entry.direction}
+              </span>
+              <code>{eventName(entry)}</code>
+              {!compact && (
+                <span className="chevron">{expanded ? "▴" : "▾"}</span>
+              )}
+            </button>
+            {expanded && (
+              <div className="payload">
+                <pre>{JSON.stringify(entry.message, null, 2)}</pre>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
-function ActivityLog({ activity, clear }: { activity: ActivityEntry[]; clear: () => void }): React.JSX.Element {
-  const [scope, setScope] = useState<"all" | "cloud" | "app" | "errors">("all"); const [showAcks, setShowAcks] = useState(false); const [showPing, setShowPing] = useState(false); const [group, setGroup] = useState(false);
-  const filtered = activity.filter((entry) => { const type = eventName(entry).toLowerCase(); if (!showAcks && type === "ack") return false; if (!showPing && ["ping", "pong"].includes(type)) return false; if (scope === "cloud" && !entry.direction.startsWith("cloud")) return false; if (scope === "app" && !entry.direction.startsWith("local")) return false; if (scope === "errors" && entry.direction !== "error") return false; return true; });
-  const groups = group ? Object.entries(filtered.reduce<Record<string, ActivityEntry[]>>((all, entry) => { const id = String(entry.message.session_id ?? entry.message.sessionId ?? "No session"); (all[id] ??= []).push(entry); return all; }, {})) : [];
-  const copy = (): void => { void navigator.clipboard.writeText(filtered.map((entry) => `${entry.at} ${entry.direction} ${JSON.stringify(entry.message)}`).join("\n")); };
-  return <><div className="headline"><h1>Activity Log</h1><p>Validated traffic across both satellite boundaries.</p></div><div className="log-toolbar"><div className="segmented">{(["all", "cloud", "app", "errors"] as const).map((item) => <button className={scope === item ? "selected" : ""} onClick={() => setScope(item)} key={item}>{item === "all" ? "All" : item === "app" ? "Local App" : `${item.charAt(0).toUpperCase()}${item.slice(1)}`}</button>)}</div><div className="toolbar-actions"><button className={showAcks ? "selected" : ""} onClick={() => setShowAcks(!showAcks)}>Show acks</button><button className={showPing ? "selected" : ""} onClick={() => setShowPing(!showPing)}>Show ping/pong</button><button className={group ? "selected" : ""} onClick={() => setGroup(!group)}>Group by Session</button><button onClick={copy}>Copy all</button><button onClick={clear}>Clear</button></div></div><section className="panel log-panel">{group ? groups.map(([id, entries]) => <div className="session-group" key={id}><h3>{id}<span>{entries.length} events</span></h3><ActivityRows activity={entries} /></div>) : <ActivityRows activity={filtered} />}</section></>;
+function ActivityLog({
+  activity,
+  clear,
+}: {
+  activity: ActivityEntry[];
+  clear: () => void;
+}): React.JSX.Element {
+  const [scope, setScope] = useState<"all" | "cloud" | "app" | "errors">("all");
+  const [showAcks, setShowAcks] = useState(false);
+  const [showPing, setShowPing] = useState(false);
+  const [group, setGroup] = useState(false);
+  const filtered = activity.filter((entry) => {
+    const type = eventName(entry).toLowerCase();
+    if (!showAcks && type === "ack") return false;
+    if (!showPing && ["ping", "pong"].includes(type)) return false;
+    if (scope === "cloud" && !entry.direction.startsWith("cloud")) return false;
+    if (scope === "app" && !entry.direction.startsWith("local")) return false;
+    if (scope === "errors" && entry.direction !== "error") return false;
+    return true;
+  });
+  const groups = group
+    ? Object.entries(
+        filtered.reduce<Record<string, ActivityEntry[]>>((all, entry) => {
+          const id = String(
+            entry.message.session_id ?? entry.message.sessionId ?? "No session",
+          );
+          (all[id] ??= []).push(entry);
+          return all;
+        }, {}),
+      )
+    : [];
+  const copy = (): void => {
+    void navigator.clipboard.writeText(
+      filtered
+        .map(
+          (entry) =>
+            `${entry.at} ${entry.direction} ${JSON.stringify(entry.message)}`,
+        )
+        .join("\n"),
+    );
+  };
+  return (
+    <>
+      <div className="headline">
+        <h1>Activity Log</h1>
+        <p>Validated traffic between the ARC server, ARC Client and local app.</p>
+      </div>
+      <div className="log-toolbar">
+        <div className="segmented">
+          {(["all", "cloud", "app", "errors"] as const).map((item) => (
+            <button
+              className={scope === item ? "selected" : ""}
+              onClick={() => setScope(item)}
+              key={item}
+            >
+              {item === "all"
+                ? "All"
+                : item === "app"
+                  ? "Local App"
+                  : `${item.charAt(0).toUpperCase()}${item.slice(1)}`}
+            </button>
+          ))}
+        </div>
+        <div className="toolbar-actions">
+          <button
+            className={showAcks ? "selected" : ""}
+            onClick={() => setShowAcks(!showAcks)}
+          >
+            Show acks
+          </button>
+          <button
+            className={showPing ? "selected" : ""}
+            onClick={() => setShowPing(!showPing)}
+          >
+            Show ping/pong
+          </button>
+          <button
+            className={group ? "selected" : ""}
+            onClick={() => setGroup(!group)}
+          >
+            Group by Session
+          </button>
+          <button onClick={copy}>Copy all</button>
+          <button onClick={clear}>Clear</button>
+        </div>
+      </div>
+      <section className="panel log-panel">
+        {group ? (
+          groups.map(([id, entries]) => (
+            <div className="session-group" key={id}>
+              <h3>
+                {id}
+                <span>{entries.length} events</span>
+              </h3>
+              <ActivityRows activity={entries} />
+            </div>
+          ))
+        ) : (
+          <ActivityRows activity={filtered} />
+        )}
+      </section>
+    </>
+  );
 }
 
-function Overview({ status, stats, activity }: { status: SatelliteStatus; stats?: SystemSnapshot; activity: ActivityEntry[] }): React.JSX.Element { return <><div className="headline"><h1>Satellite overview</h1><p>Live connectivity, sessions and local transport health.</p></div><div className="cards"><Stat label="ARC SERVER" value={status.cloud} detail="Authenticated cloud WebSocket" /><Stat label="LOCAL APP" value={status.localAppConnected ? "Connected" : "Not connected"} detail={status.transportError ?? "WebSocket · localhost"} /><Stat label="ACTIVE SESSION" value={status.cloudSessionId ? status.cloudSessionId.slice(0, 8) : "None"} detail="RFID session routing" /><Stat label="CPU" value={stats ? `${stats.cpu_percent.toFixed(0)}%` : "—"} detail="Current system load" /></div><section className="panel"><div className="section-title"><h2>Recent activity</h2><span>{activity.length} messages</span></div><ActivityRows compact activity={activity.slice(0, 8)} /></section></>; }
-
-function Triggers({ config, save }: { config: SatelliteConfig; save: (next: SatelliteConfig) => Promise<void> }): React.JSX.Element {
-  const [notice, setNotice] = useState(""); const add = (): void => { const id = window.prompt("Trigger ID (for example: game-completed)")?.trim(); if (!id) return; const name = window.prompt("Display name", id)?.trim() || id; void save({ ...config, triggers: [...config.triggers, { id, name, description: "" }] }); };
-  const importTemplate = async (): Promise<void> => { const next = await window.arcSatellite.importTemplate(); if (next) setNotice(`Imported ${next.triggers.length} triggers and client settings. This client's ID was preserved.`); };
-  return <><div className="headline row"><div><h1>Trigger Events</h1><p>Events registered by the local application and this client.</p></div><div className="actions"><button onClick={() => void window.arcSatellite.exportTemplate().then((ok) => ok && setNotice("Template saved. Client ID was excluded."))}>Save Template</button><button onClick={() => void importTemplate()}>Import Template</button><button className="primary" onClick={add}>＋ Add Trigger</button></div></div>{notice && <div className="notice">{notice}</div>}<div className="trigger-grid">{config.triggers.map((trigger) => <article className="trigger" key={trigger.id}><div><h3>{trigger.name}</h3><code>{trigger.id}</code><p>{trigger.description || "No description"}</p></div><button className="icon" onClick={() => void save({ ...config, triggers: config.triggers.filter((item) => item.id !== trigger.id) })}>Delete</button></article>)}</div>{!config.triggers.length && <div className="empty panel">Connect an ARC SDK application or add a trigger manually.</div>}</>;
+function Overview({
+  status,
+  stats,
+  activity,
+}: {
+  status: SatelliteStatus;
+  stats?: SystemSnapshot;
+  activity: ActivityEntry[];
+}): React.JSX.Element {
+  return (
+    <>
+      <div className="headline">
+        <h1>ARC Client overview</h1>
+        <p>Live connectivity, sessions and local transport health.</p>
+      </div>
+      <div className="cards">
+        <Stat
+          label="ARC SERVER"
+          value={status.cloud}
+          detail="Authenticated cloud WebSocket"
+        />
+        <Stat
+          label="LOCAL APP"
+          value={status.localAppConnected ? "Connected" : "Not connected"}
+          detail={status.transportError ?? "WebSocket · localhost"}
+        />
+        <Stat
+          label="ACTIVE SESSION"
+          value={
+            status.cloudSessionId ? status.cloudSessionId.slice(0, 8) : "None"
+          }
+          detail="RFID session routing"
+        />
+        <Stat
+          label="CPU"
+          value={stats ? `${stats.cpu_percent.toFixed(0)}%` : "—"}
+          detail="Current system load"
+        />
+      </div>
+      <section className="panel">
+        <div className="section-title">
+          <h2>Recent activity</h2>
+          <span>{activity.length} messages</span>
+        </div>
+        <ActivityRows compact activity={activity.slice(0, 8)} />
+      </section>
+    </>
+  );
 }
 
-function Settings({ config, save }: { config: SatelliteConfig; save: (next: SatelliteConfig) => Promise<void> }): React.JSX.Element {
-  const [draft, setDraft] = useState(config); const [saved, setSaved] = useState(false); const [showToken, setShowToken] = useState(false); useEffect(() => setDraft(config), [config]); const update = <K extends keyof SatelliteConfig>(key: K, value: SatelliteConfig[K]): void => setDraft({ ...draft, [key]: value });
-  return <><div className="headline"><h1>Settings</h1><p>Device identity, deployment, ARC server and local application connections.</p></div><section className="panel form"><h2>Identity</h2><div className="form-grid"><Field label="Device Name"><input value={draft.name} onChange={(e) => update("name", e.target.value)} /></Field><Field label="Client ID" hint="Unique to this PC and never replaced when importing a template."><input className="mono" readOnly value={draft.clientId} /></Field><Field label="Description (optional)"><input placeholder="e.g. Main game pod — Zone A" value={draft.description} onChange={(e) => update("description", e.target.value)} /></Field><Field label="Installation ID (optional)"><input className="mono" value={draft.installationId ?? ""} onChange={(e) => update("installationId", e.target.value || undefined)} /></Field></div></section><section className="panel form"><h2>Deployment</h2><div className="form-grid"><Field label="Site ID (optional)" hint="UUID from ARC Admin Portal → Manage Sites"><input className="mono" value={draft.siteId ?? ""} onChange={(e) => update("siteId", e.target.value || undefined)} /></Field><Field label="Zone (optional)"><input placeholder="e.g. Zone A, Level 2" value={draft.zone} onChange={(e) => update("zone", e.target.value)} /></Field><Field label="Application Type"><select value={draft.applicationType} onChange={(e) => update("applicationType", e.target.value)}><option value="">— Not set —</option>{["Game", "Interaction", "Media Player", "Checkpoint", "Kinetic", "Other"].map((item) => <option value={item.toLowerCase().replace(" ", "-")} key={item}>{item}</option>)}</select></Field></div></section><section className="panel form"><h2>ARC Connection</h2><div className="form-grid"><Field label="Platform Server URL"><input value={draft.serverUrl} onChange={(e) => update("serverUrl", e.target.value)} /></Field><Field label="API Token"><div className="input-action"><input type={showToken ? "text" : "password"} value={draft.apiToken ?? ""} onChange={(e) => update("apiToken", e.target.value || undefined)} /><button onClick={() => setShowToken(!showToken)}>{showToken ? "Hide" : "Show"}</button></div></Field></div></section><section className="panel form"><h2>Local App Transports</h2><p>The SDK normally connects to the local WebSocket. Optional transports support other integrations.</p><div className="form-grid transports"><Field label="WebSocket Port"><input type="number" value={draft.localWsPort} onChange={(e) => update("localWsPort", Number(e.target.value))} /></Field>{([['HTTP','localHttpEnabled','localHttpPort'],['TCP','localTcpEnabled','localTcpPort'],['UDP','localUdpEnabled','localUdpPort']] as const).map(([label, enabled, port]) => <div className="transport-setting" key={label}><label><input type="checkbox" checked={draft[enabled]} onChange={(e) => update(enabled, e.target.checked)} />{label} enabled</label><input type="number" value={draft[port]} onChange={(e) => update(port, Number(e.target.value))} /></div>)}</div></section><section className="panel form"><h2>Health Reporting</h2><div className="form-grid">{([['CPU alert threshold (%)','cpuThreshold'],['RAM alert threshold (%)','ramThreshold'],['Disk alert threshold (%)','diskThreshold'],['Sample interval (seconds)','intervalSeconds']] as const).map(([label, key]) => <Field label={label} key={key}><input type="number" value={draft.monitoring[key]} onChange={(e) => setDraft({ ...draft, monitoring: { ...draft.monitoring, [key]: Number(e.target.value) } })} /></Field>)}</div></section><div className="actions"><button className="primary" onClick={() => void save(draft).then(() => { setSaved(true); setTimeout(() => setSaved(false), 2000); })}>Save & Reconnect</button><button onClick={() => void window.arcSatellite.exportDiagnostics()}>Export Diagnostics</button>{saved && <span className="success">Saved</span>}</div></>;
+function Triggers({
+  config,
+  save,
+}: {
+  config: SatelliteConfig;
+  save: (next: SatelliteConfig) => Promise<void>;
+}): React.JSX.Element {
+  const [notice, setNotice] = useState("");
+  const add = (): void => {
+    const id = window
+      .prompt("Trigger ID (for example: game-completed)")
+      ?.trim();
+    if (!id) return;
+    const name = window.prompt("Display name", id)?.trim() || id;
+    void save({
+      ...config,
+      triggers: [...config.triggers, { id, name, description: "" }],
+    });
+  };
+  const importTemplate = async (): Promise<void> => {
+    const next = await window.arcSatellite.importTemplate();
+    if (next)
+      setNotice(
+        `Imported ${next.triggers.length} triggers and client settings. This client's ID was preserved.`,
+      );
+  };
+  return (
+    <>
+      <div className="headline row">
+        <div>
+          <h1>Trigger Events</h1>
+          <p>Events registered by the local application and this client.</p>
+        </div>
+        <div className="actions">
+          <button
+            onClick={() =>
+              void window.arcSatellite
+                .exportTemplate()
+                .then(
+                  (ok) =>
+                    ok && setNotice("Template saved. Client ID was excluded."),
+                )
+            }
+          >
+            Save Template
+          </button>
+          <button onClick={() => void importTemplate()}>Import Template</button>
+          <button className="primary" onClick={add}>
+            ＋ Add Trigger
+          </button>
+        </div>
+      </div>
+      {notice && <div className="notice">{notice}</div>}
+      <div className="trigger-grid">
+        {config.triggers.map((trigger) => (
+          <article className="trigger" key={trigger.id}>
+            <div>
+              <h3>{trigger.name}</h3>
+              <code>{trigger.id}</code>
+              <p>{trigger.description || "No description"}</p>
+            </div>
+            <button
+              className="icon"
+              onClick={() =>
+                void save({
+                  ...config,
+                  triggers: config.triggers.filter(
+                    (item) => item.id !== trigger.id,
+                  ),
+                })
+              }
+            >
+              Delete
+            </button>
+          </article>
+        ))}
+      </div>
+      {!config.triggers.length && (
+        <div className="empty panel">
+          Connect an ARC SDK application or add a trigger manually.
+        </div>
+      )}
+    </>
+  );
 }
 
-function Launcher({ config, save }: { config: SatelliteConfig; save: (next: SatelliteConfig) => Promise<void> }): React.JSX.Element {
-  const [draft, setDraft] = useState(config.launcher); const [dragging, setDragging] = useState(false); useEffect(() => setDraft(config.launcher), [config]); const choose = async (): Promise<void> => { const selected = await window.arcSatellite.chooseApplication(); if (selected) setDraft({ ...draft, path: selected, type: "file" }); }; const drop = (event: React.DragEvent): void => { event.preventDefault(); setDragging(false); const file = event.dataTransfer.files[0]; if (file) setDraft({ ...draft, path: window.arcSatellite.getPathForFile(file), type: "file" }); };
-  return <><div className="headline"><h1>App Launcher</h1><p>Configure how this client launches and supervises the local application.</p></div><section className="panel form"><h2>Application / File</h2><p>Select an executable, application, shortcut, or any file to open.</p><div className="path-row"><input className="mono" value={draft.path} onChange={(e) => setDraft({ ...draft, path: e.target.value, type: "file" })} /><button onClick={() => void choose()}>Browse…</button></div><div className={`drop-zone ${dragging ? "dragging" : ""}`} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={drop}>Drop an application, file, or shortcut here</div></section><section className="panel form"><h2>Startup Script</h2><p>Run a bash/shell script in addition to or instead of the selected file.</p><textarea className="code-editor" spellCheck={false} placeholder="#!/bin/bash" value={draft.script} onChange={(e) => setDraft({ ...draft, script: e.target.value, type: e.target.value ? "script" : draft.path ? "file" : "none" })} /></section><section className="panel form"><h2>Launch Options</h2><div className="checks single">{([['onConnect','Auto-launch when connected to ARC server'],['onSession','Auto-launch when a player session starts'],['autoRelaunch','Auto-relaunch if a monitored process stops'],['queueSession','Queue last session when app is not running']] as const).map(([key, label]) => <label key={key}><input type="checkbox" checked={draft[key]} onChange={(e) => setDraft({ ...draft, [key]: e.target.checked })} />{label}</label>)}</div><div className="compact-fields"><Field label="Relaunch cooldown"><div className="unit"><input type="number" value={draft.relaunchCooldownSeconds} onChange={(e) => setDraft({ ...draft, relaunchCooldownSeconds: Number(e.target.value) })} /><span>s</span></div></Field><Field label="Auto-launch delay"><div className="unit"><input type="number" value={draft.delaySeconds} onChange={(e) => setDraft({ ...draft, delaySeconds: Number(e.target.value) })} /><span>s</span></div></Field></div></section><div className="actions"><button className="primary" onClick={() => void save({ ...config, launcher: draft })}>Save Options</button><button onClick={() => void window.arcSatellite.launchApp()}>▶ Launch Now</button></div></>;
+function Settings({
+  config,
+  save,
+}: {
+  config: SatelliteConfig;
+  save: (next: SatelliteConfig) => Promise<void>;
+}): React.JSX.Element {
+  const [draft, setDraft] = useState(config);
+  const [saved, setSaved] = useState(false);
+  const [showToken, setShowToken] = useState(false);
+  useEffect(() => setDraft(config), [config]);
+  const update = <K extends keyof SatelliteConfig>(
+    key: K,
+    value: SatelliteConfig[K],
+  ): void => setDraft({ ...draft, [key]: value });
+  return (
+    <>
+      <div className="headline">
+        <h1>Settings</h1>
+        <p>
+          Device identity, deployment, ARC server and local application
+          connections.
+        </p>
+      </div>
+      <section className="panel form">
+        <h2>Identity</h2>
+        <div className="form-grid">
+          <Field label="Device Name">
+            <input
+              value={draft.name}
+              onChange={(e) => update("name", e.target.value)}
+            />
+          </Field>
+          <Field
+            label="Client ID"
+            hint="Unique to this PC and never replaced when importing a template."
+          >
+            <input className="mono" readOnly value={draft.clientId} />
+          </Field>
+          <Field label="Description (optional)">
+            <input
+              placeholder="e.g. Main game pod — Zone A"
+              value={draft.description}
+              onChange={(e) => update("description", e.target.value)}
+            />
+          </Field>
+          <Field label="Installation ID (optional)">
+            <input
+              className="mono"
+              value={draft.installationId ?? ""}
+              onChange={(e) =>
+                update("installationId", e.target.value || undefined)
+              }
+            />
+          </Field>
+        </div>
+      </section>
+      <section className="panel form">
+        <h2>Deployment</h2>
+        <div className="form-grid">
+          <Field
+            label="Site ID (optional)"
+            hint="UUID from ARC Admin Portal → Manage Sites"
+          >
+            <input
+              className="mono"
+              value={draft.siteId ?? ""}
+              onChange={(e) => update("siteId", e.target.value || undefined)}
+            />
+          </Field>
+          <Field label="Zone (optional)">
+            <input
+              placeholder="e.g. Zone A, Level 2"
+              value={draft.zone}
+              onChange={(e) => update("zone", e.target.value)}
+            />
+          </Field>
+          <Field label="Application Type">
+            <select
+              value={draft.applicationType}
+              onChange={(e) => update("applicationType", e.target.value)}
+            >
+              <option value="">— Not set —</option>
+              {[
+                "Game",
+                "Interaction",
+                "Media Player",
+                "Checkpoint",
+                "Kinetic",
+                "Other",
+              ].map((item) => (
+                <option value={item.toLowerCase().replace(" ", "-")} key={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      </section>
+      <section className="panel form">
+        <h2>ARC Connection</h2>
+        <div className="form-grid">
+          <Field label="Platform Server URL">
+            <input
+              value={draft.serverUrl}
+              onChange={(e) => update("serverUrl", e.target.value)}
+            />
+          </Field>
+          <Field label="API Token">
+            <div className="input-action">
+              <input
+                type={showToken ? "text" : "password"}
+                value={draft.apiToken ?? ""}
+                onChange={(e) =>
+                  update("apiToken", e.target.value || undefined)
+                }
+              />
+              <button onClick={() => setShowToken(!showToken)}>
+                {showToken ? "Hide" : "Show"}
+              </button>
+            </div>
+          </Field>
+        </div>
+      </section>
+      <section className="panel form">
+        <h2>Local App Transports</h2>
+        <p>
+          The SDK normally connects to the local WebSocket. Optional transports
+          support other integrations.
+        </p>
+        <div className="form-grid transports">
+          <Field label="WebSocket Port">
+            <input
+              type="number"
+              value={draft.localWsPort}
+              onChange={(e) => update("localWsPort", Number(e.target.value))}
+            />
+          </Field>
+          {(
+            [
+              ["HTTP", "localHttpEnabled", "localHttpPort"],
+              ["TCP", "localTcpEnabled", "localTcpPort"],
+              ["UDP", "localUdpEnabled", "localUdpPort"],
+            ] as const
+          ).map(([label, enabled, port]) => (
+            <div className="transport-setting" key={label}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={draft[enabled]}
+                  onChange={(e) => update(enabled, e.target.checked)}
+                />
+                {label} enabled
+              </label>
+              <input
+                type="number"
+                value={draft[port]}
+                onChange={(e) => update(port, Number(e.target.value))}
+              />
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className="panel form">
+        <h2>Health Reporting</h2>
+        <div className="form-grid">
+          {(
+            [
+              ["CPU alert threshold (%)", "cpuThreshold"],
+              ["RAM alert threshold (%)", "ramThreshold"],
+              ["Disk alert threshold (%)", "diskThreshold"],
+              ["Sample interval (seconds)", "intervalSeconds"],
+            ] as const
+          ).map(([label, key]) => (
+            <Field label={label} key={key}>
+              <input
+                type="number"
+                value={draft.monitoring[key]}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    monitoring: {
+                      ...draft.monitoring,
+                      [key]: Number(e.target.value),
+                    },
+                  })
+                }
+              />
+            </Field>
+          ))}
+        </div>
+      </section>
+      <div className="actions">
+        <button
+          className="primary"
+          onClick={() =>
+            void save(draft).then(() => {
+              setSaved(true);
+              setTimeout(() => setSaved(false), 2000);
+            })
+          }
+        >
+          Save & Reconnect
+        </button>
+        <button onClick={() => void window.arcSatellite.exportDiagnostics()}>
+          Export Diagnostics
+        </button>
+        {saved && <span className="success">Saved</span>}
+      </div>
+    </>
+  );
 }
 
-const formatUptime = (seconds?: number): string => seconds === undefined ? "—" : `${Math.floor(seconds / 86400)}d ${Math.floor(seconds % 86400 / 3600)}h ${Math.floor(seconds % 3600 / 60)}m`; const formatRate = (bytes?: number): string => bytes === undefined ? "—" : bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB/s` : `${(bytes / 1024).toFixed(1)} KB/s`;
-function Monitor({ stats, config, save }: { stats?: SystemSnapshot; config: SatelliteConfig; save: (next: SatelliteConfig) => Promise<void> }): React.JSX.Element {
-  const [name, setName] = useState(""); const add = (): void => { if (name.trim() && !config.monitoring.processes.includes(name.trim())) { void save({ ...config, monitoring: { ...config.monitoring, processes: [...config.monitoring.processes, name.trim()] } }); setName(""); } };
-  return <><div className="headline"><h1>System Monitor</h1><p>Detailed hardware health, throughput and supervised attraction processes.</p></div><div className="cards monitor"><Stat label="CPU USAGE" value={stats ? `${stats.cpu_percent.toFixed(1)}%` : "—"} detail={stats?.cpu_freq_ghz ? `${stats.cpu_freq_ghz.toFixed(2)} GHz` : "Frequency unavailable"} /><Stat label="RAM USAGE" value={stats ? `${stats.ram_percent.toFixed(1)}%` : "—"} detail={stats ? `${(stats.ram_used_mb / 1024).toFixed(2)} / ${(stats.ram_total_mb / 1024).toFixed(2)} GB` : "Awaiting sample"} /><Stat label="SYSTEM UPTIME" value={formatUptime(stats?.uptime_seconds)} detail={stats ? `${stats.hostname} · ${stats.os}` : "Awaiting sample"} /><Stat label="DISK USAGE" value={stats?.disk_percent !== undefined ? `${stats.disk_percent.toFixed(1)}%` : "—"} detail={stats?.disk_total_gb ? `${stats.disk_used_gb?.toFixed(1)} / ${stats.disk_total_gb.toFixed(1)} GB` : "Unavailable"} /><Stat label="SWAP USED" value={stats ? `${stats.swap_percent.toFixed(1)}%` : "—"} detail="Virtual memory" /><Stat label="NETWORK DOWNLOAD" value={formatRate(stats?.network_rx_bytes_sec)} detail="Current receive rate" /><Stat label="NETWORK UPLOAD" value={formatRate(stats?.network_tx_bytes_sec)} detail="Current transmit rate" /><Stat label="SAMPLED" value={stats ? new Date(stats.sampled_at).toLocaleTimeString() : "—"} detail="Live health interval" /></div><section className="panel form"><h2>CPU Cores</h2><div className="core-grid">{stats?.cpu_per_core.map((load, index) => <div className="core" key={index}><span>Core {index}</span><strong>{load.toFixed(0)}%</strong><div><i style={{ width: `${Math.min(load, 100)}%` }} className={load >= 85 ? "hot" : ""} /></div></div>) ?? <div className="empty">Awaiting CPU data.</div>}</div></section><section className="panel form"><h2>Hardware Sensors</h2><p>Sensor availability varies by operating system and hardware permissions.</p><div className="sensor-list"><div><span>Temperature sensors</span><strong>{stats?.cpu_temperature_c !== undefined ? `${stats.cpu_temperature_c.toFixed(1)} °C` : "Not supported"}</strong></div><div><span>Fan speeds</span><strong>{stats?.fan_rpm?.length ? stats.fan_rpm.map((rpm) => `${rpm} RPM`).join(", ") : "Not supported"}</strong></div><div><span>Battery</span><strong>{stats?.battery_has_battery ? `${stats.battery_percent?.toFixed(0)}% — ${stats.battery_charging ? "Charging" : "On battery"}` : "Not present"}</strong></div><div><span>GPU</span><strong>{stats?.gpus?.length ? stats.gpus.map((gpu) => `${gpu.model}${gpu.temperature_c !== undefined ? ` · ${gpu.temperature_c} °C` : ""}`).join("; ") : "Not supported"}</strong></div></div></section><section className="panel form"><div className="section-title"><div><h2>Monitored Processes</h2><p>The client alerts ARC when these processes start or stop unexpectedly.</p></div></div><div className="process-list">{config.monitoring.processes.map((processName) => <div key={processName}><Badge good={stats?.processes[processName]}>{processName} · {stats?.processes[processName] ? "Running" : "Stopped"}</Badge><button className="icon" onClick={() => void save({ ...config, monitoring: { ...config.monitoring, processes: config.monitoring.processes.filter((item) => item !== processName) } })}>Remove</button></div>)}</div><div className="add-process"><input placeholder="Process name, e.g. Zombears" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} /><button className="primary" onClick={add}>Add</button></div></section></>;
+function Launcher({
+  config,
+  save,
+}: {
+  config: SatelliteConfig;
+  save: (next: SatelliteConfig) => Promise<void>;
+}): React.JSX.Element {
+  const [draft, setDraft] = useState(config.launcher);
+  const [dragging, setDragging] = useState(false);
+  useEffect(() => setDraft(config.launcher), [config]);
+  const choose = async (): Promise<void> => {
+    const selected = await window.arcSatellite.chooseApplication();
+    if (selected) setDraft({ ...draft, path: selected, type: "file" });
+  };
+  const drop = (event: React.DragEvent): void => {
+    event.preventDefault();
+    setDragging(false);
+    const file = event.dataTransfer.files[0];
+    if (file)
+      setDraft({
+        ...draft,
+        path: window.arcSatellite.getPathForFile(file),
+        type: "file",
+      });
+  };
+  return (
+    <>
+      <div className="headline">
+        <h1>App Launcher</h1>
+        <p>
+          Configure how the ARC Client launches and supervises the local
+          application.
+        </p>
+      </div>
+      <section className="panel form">
+        <h2>Application / File</h2>
+        <p>Select an executable, application, shortcut, or any file to open.</p>
+        <div className="path-row">
+          <input
+            className="mono"
+            value={draft.path}
+            onChange={(e) =>
+              setDraft({ ...draft, path: e.target.value, type: "file" })
+            }
+          />
+          <button onClick={() => void choose()}>Browse…</button>
+        </div>
+        <div
+          className={`drop-zone ${dragging ? "dragging" : ""}`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={drop}
+        >
+          Drop an application, file, or shortcut here
+        </div>
+      </section>
+      <section className="panel form">
+        <h2>Startup Script</h2>
+        <p>
+          Run a bash/shell script in addition to or instead of the selected
+          file.
+        </p>
+        <textarea
+          className="code-editor"
+          spellCheck={false}
+          placeholder="#!/bin/bash"
+          value={draft.script}
+          onChange={(e) =>
+            setDraft({
+              ...draft,
+              script: e.target.value,
+              type: e.target.value ? "script" : draft.path ? "file" : "none",
+            })
+          }
+        />
+      </section>
+      <section className="panel form">
+        <h2>Launch Options</h2>
+        <div className="checks single">
+          {(
+            [
+              ["onConnect", "Auto-launch when connected to ARC server"],
+              ["onSession", "Auto-launch when a player session starts"],
+              ["autoRelaunch", "Auto-relaunch if a monitored process stops"],
+              ["queueSession", "Queue last session when app is not running"],
+            ] as const
+          ).map(([key, label]) => (
+            <label key={key}>
+              <input
+                type="checkbox"
+                checked={draft[key]}
+                onChange={(e) =>
+                  setDraft({ ...draft, [key]: e.target.checked })
+                }
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+        <div className="compact-fields">
+          <Field label="Relaunch cooldown">
+            <div className="unit">
+              <input
+                type="number"
+                value={draft.relaunchCooldownSeconds}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    relaunchCooldownSeconds: Number(e.target.value),
+                  })
+                }
+              />
+              <span>s</span>
+            </div>
+          </Field>
+          <Field label="Auto-launch delay">
+            <div className="unit">
+              <input
+                type="number"
+                value={draft.delaySeconds}
+                onChange={(e) =>
+                  setDraft({ ...draft, delaySeconds: Number(e.target.value) })
+                }
+              />
+              <span>s</span>
+            </div>
+          </Field>
+        </div>
+      </section>
+      <div className="actions">
+        <button
+          className="primary"
+          onClick={() => void save({ ...config, launcher: draft })}
+        >
+          Save Options
+        </button>
+        <button onClick={() => void window.arcSatellite.launchApp()}>
+          ▶ Launch Now
+        </button>
+      </div>
+    </>
+  );
+}
+
+const formatUptime = (seconds?: number): string =>
+  seconds === undefined
+    ? "—"
+    : `${Math.floor(seconds / 86400)}d ${Math.floor((seconds % 86400) / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+const formatRate = (bytes?: number): string =>
+  bytes === undefined
+    ? "—"
+    : bytes >= 1048576
+      ? `${(bytes / 1048576).toFixed(1)} MB/s`
+      : `${(bytes / 1024).toFixed(1)} KB/s`;
+function Monitor({
+  stats,
+  config,
+  save,
+  openConsole,
+}: {
+  stats?: SystemSnapshot;
+  config: SatelliteConfig;
+  save: (next: SatelliteConfig) => Promise<void>;
+  openConsole: () => void;
+}): React.JSX.Element {
+  const [name, setName] = useState("");
+  const add = (): void => {
+    if (name.trim() && !config.monitoring.processes.includes(name.trim())) {
+      void save({
+        ...config,
+        monitoring: {
+          ...config.monitoring,
+          processes: [...config.monitoring.processes, name.trim()],
+        },
+      });
+      setName("");
+    }
+  };
+  const batteryState = !stats?.battery_has_battery
+    ? "Not present"
+    : `${stats.battery_percent?.toFixed(0)}% — ${stats.battery_ac_connected ? (stats.battery_charging ? "Plugged in · charging" : "Plugged in · not charging") : "On battery"}`;
+  return (
+    <>
+      <div className="headline row">
+        <div>
+          <h1>System Monitor</h1>
+          <p>
+            Detailed hardware health, throughput and supervised attraction
+            processes.
+          </p>
+        </div>
+        <button onClick={openConsole}>Open System Console</button>
+      </div>
+      <div className="cards monitor">
+        <Stat
+          label="CPU USAGE"
+          value={stats ? `${stats.cpu_percent.toFixed(1)}%` : "—"}
+          detail={
+            stats?.cpu_freq_ghz
+              ? `${stats.cpu_freq_ghz.toFixed(2)} GHz`
+              : "Frequency unavailable"
+          }
+        />
+        <Stat
+          label="RAM USAGE"
+          value={stats ? `${stats.ram_percent.toFixed(1)}%` : "—"}
+          detail={
+            stats
+              ? `${(stats.ram_used_mb / 1024).toFixed(2)} / ${(stats.ram_total_mb / 1024).toFixed(2)} GB`
+              : "Awaiting sample"
+          }
+        />
+        <Stat
+          label="SYSTEM UPTIME"
+          value={formatUptime(stats?.uptime_seconds)}
+          detail={stats ? `${stats.hostname} · ${stats.os}` : "Awaiting sample"}
+        />
+        <Stat
+          label="DISK USAGE"
+          value={
+            stats?.disk_percent !== undefined
+              ? `${stats.disk_percent.toFixed(1)}%`
+              : "—"
+          }
+          detail={
+            stats?.disk_total_gb
+              ? `${stats.disk_used_gb?.toFixed(1)} / ${stats.disk_total_gb.toFixed(1)} GB`
+              : "Unavailable"
+          }
+        />
+        <Stat
+          label="SWAP USED"
+          value={stats ? `${stats.swap_percent.toFixed(1)}%` : "—"}
+          detail="Virtual memory"
+        />
+        <Stat
+          label="NETWORK DOWNLOAD"
+          value={formatRate(stats?.network_rx_bytes_sec)}
+          detail="Current receive rate"
+        />
+        <Stat
+          label="NETWORK UPLOAD"
+          value={formatRate(stats?.network_tx_bytes_sec)}
+          detail="Current transmit rate"
+        />
+        <Stat
+          label="SAMPLED"
+          value={stats ? new Date(stats.sampled_at).toLocaleTimeString() : "—"}
+          detail="Live health interval"
+        />
+      </div>
+      <section className="panel form">
+        <h2>CPU Cores</h2>
+        <div className="core-grid">
+          {stats?.cpu_per_core.map((load, index) => (
+            <div className="core" key={index}>
+              <span>Core {index}</span>
+              <strong>{load.toFixed(0)}%</strong>
+              <div>
+                <i
+                  style={{ width: `${Math.min(load, 100)}%` }}
+                  className={load >= 85 ? "hot" : ""}
+                />
+              </div>
+            </div>
+          )) ?? <div className="empty">Awaiting CPU data.</div>}
+        </div>
+      </section>
+      <section className="panel form">
+        <h2>Hardware Sensors</h2>
+        <p>
+          Sensor availability varies by operating system and hardware
+          permissions.
+        </p>
+        <div className="sensor-list">
+          <div>
+            <span>Temperature sensors</span>
+            <strong>
+              {stats?.cpu_temperature_c !== undefined
+                ? `${stats.cpu_temperature_c.toFixed(1)} °C`
+                : "Not supported"}
+            </strong>
+          </div>
+          <div>
+            <span>Fan speeds</span>
+            <strong>
+              {stats?.fan_rpm?.length
+                ? stats.fan_rpm.map((rpm) => `${rpm} RPM`).join(", ")
+                : "Not supported"}
+            </strong>
+          </div>
+          <div>
+            <span>Battery</span>
+            <strong>{batteryState}</strong>
+          </div>
+          <div>
+            <span>GPU</span>
+            <strong>
+              {stats?.gpus?.length
+                ? stats.gpus
+                    .map(
+                      (gpu) =>
+                        `${gpu.model}${gpu.temperature_c !== undefined ? ` · ${gpu.temperature_c} °C` : ""}`,
+                    )
+                    .join("; ")
+                : "Not supported"}
+            </strong>
+          </div>
+        </div>
+      </section>
+      <section className="panel form">
+        <div className="section-title">
+          <div>
+            <h2>Monitored Processes</h2>
+            <p>
+              The ARC Client alerts the server when these processes start or
+              stop unexpectedly.
+            </p>
+          </div>
+        </div>
+        <div className="process-list">
+          {config.monitoring.processes.map((processName) => (
+            <div key={processName}>
+              <Badge good={stats?.processes[processName]}>
+                {processName} ·{" "}
+                {stats?.processes[processName] ? "Running" : "Stopped"}
+              </Badge>
+              <button
+                className="icon"
+                onClick={() =>
+                  void save({
+                    ...config,
+                    monitoring: {
+                      ...config.monitoring,
+                      processes: config.monitoring.processes.filter(
+                        (item) => item !== processName,
+                      ),
+                    },
+                  })
+                }
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="add-process">
+          <input
+            placeholder="Process name, e.g. Zombears"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && add()}
+          />
+          <button className="primary" onClick={add}>
+            Add
+          </button>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function SystemConsole({
+  activity,
+  close,
+}: {
+  activity: ActivityEntry[];
+  close: () => void;
+}): React.JSX.Element {
+  const text = activity
+    .map(
+      (entry) =>
+        `[${new Date(entry.at).toLocaleTimeString()}] ${entry.direction.toUpperCase()} ${JSON.stringify(entry.message, null, 2)}`,
+    )
+    .join("\n\n");
+  return (
+    <div className="modal-backdrop">
+      <section className="console-modal">
+        <div className="console-title">
+          <div>
+            <h2>ARC Client System Console</h2>
+            <p>
+              Raw server, local app, transport and system events from this run.
+            </p>
+          </div>
+          <div className="actions">
+            <button onClick={() => void navigator.clipboard.writeText(text)}>
+              Copy Logs
+            </button>
+            <button onClick={close}>Close</button>
+          </div>
+        </div>
+        <pre>{text || "No system events have been recorded yet."}</pre>
+      </section>
+    </div>
+  );
 }
 
 function App(): React.JSX.Element {
-  const [page, setPage] = useState<Page>("Overview"); const [status, setStatus] = useState<SatelliteStatus>({ cloud: "stopped", localTransport: "stopped", localAppConnected: false }); const [config, setConfig] = useState<SatelliteConfig>(); const [stats, setStats] = useState<SystemSnapshot>(); const [activity, setActivity] = useState<ActivityEntry[]>([]); const [brandName, setBrandName] = useState("ARC"); const [launchPending, setLaunchPending] = useState<{ reason: string; delaySeconds: number }>();
-  useEffect(() => { if (!window.arcSatellite) return; void Promise.all([window.arcSatellite.getStatus(), window.arcSatellite.getConfig(), window.arcSatellite.getSystemStats(), window.arcSatellite.getBranding()]).then(([s, c, system, branding]) => { setStatus(s); setConfig(c); setStats(system); setBrandName(branding.platform_name); const root = document.documentElement.style; const values: Array<[string, string | null | undefined]> = [["--arc-primary", branding.primary_colour], ["--arc-accent", branding.accent_colour], ["--arc-bg", branding.background_colour], ["--arc-text", branding.text_colour], ["--arc-muted", branding.muted_colour], ["--arc-sidebar", branding.sidebar_background_colour], ["--arc-sidebar-text", branding.sidebar_text_colour], ["--arc-sidebar-hover", branding.sidebar_hover_background_colour], ["--arc-sidebar-selected", branding.sidebar_selected_background_colour], ["--arc-border", branding.border_colour], ["--arc-radius", branding.corner_radius_px !== null && branding.corner_radius_px !== undefined ? `${branding.corner_radius_px}px` : undefined], ["--arc-font-size", branding.base_font_size_px ? `${branding.base_font_size_px}px` : undefined]]; values.forEach(([key, value]) => { if (value) root.setProperty(key, value); }); }); const off = [window.arcSatellite.onStatus(setStatus), window.arcSatellite.onConfig(setConfig), window.arcSatellite.onSystemStats(setStats), window.arcSatellite.onActivity((entry) => setActivity((current) => [entry, ...current].slice(0, 500))), window.arcSatellite.onLaunchScheduled(setLaunchPending), window.arcSatellite.onLaunchCancelled(() => setLaunchPending(undefined))]; return () => off.forEach((dispose) => dispose()); }, []);
-  const save = async (next: SatelliteConfig): Promise<void> => { const saved = await window.arcSatellite.updateConfig(next); setConfig(saved); }; const allGood = status.cloud === "connected" && status.localAppConnected; const body = useMemo(() => { if (!config) return <div className="empty">Loading configuration…</div>; switch (page) { case "Overview": return <Overview status={status} stats={stats} activity={activity} />; case "Trigger Events": return <Triggers config={config} save={save} />; case "Activity Log": return <ActivityLog activity={activity} clear={() => setActivity([])} />; case "Settings": return <Settings config={config} save={save} />; case "App Launcher": return <Launcher config={config} save={save} />; case "System Monitor": return <Monitor stats={stats} config={config} save={save} />; } }, [page, config, status, stats, activity]);
-  return <main className="shell"><aside className="sidebar"><div className="brand"><span className="brand-mark">A</span><span>{brandName} Satellite</span></div><nav>{pages.map((item) => <button className={page === item ? "active" : ""} key={item} onClick={() => setPage(item)}>{item}</button>)}</nav><div className="device"><small>CLIENT ID</small><strong>{config?.name ?? "Initialising…"}</strong><span>{config?.clientId.slice(0, 8).toUpperCase()}</span></div></aside><section className="content"><header><strong>{page}</strong><Badge good={allGood}>{allGood ? "All Systems Go" : status.localTransport === "error" ? "Local Port Error" : status.cloud === "auth-failed" ? "Authentication Failed" : "App Not Connected"}</Badge></header><div className="page">{body}</div></section>{launchPending && <div className="modal-backdrop"><div className="modal"><h2>Application Launch</h2><p>The configured application will launch in {launchPending.delaySeconds} seconds.</p><button onClick={() => void window.arcSatellite.cancelLaunch().then(() => setLaunchPending(undefined))}>Cancel Launch</button></div></div>}</main>;
+  const [page, setPage] = useState<Page>("Overview");
+  const [status, setStatus] = useState<SatelliteStatus>({
+    cloud: "stopped",
+    localTransport: "stopped",
+    localAppConnected: false,
+  });
+  const [config, setConfig] = useState<SatelliteConfig>();
+  const [stats, setStats] = useState<SystemSnapshot>();
+  const [activity, setActivity] = useState<ActivityEntry[]>([]);
+  const [brandName, setBrandName] = useState("ARC");
+  const [brandLogo, setBrandLogo] = useState<string>();
+  const [logoOnly, setLogoOnly] = useState(false);
+  const [consoleOpen, setConsoleOpen] = useState(false);
+  const [launchPending, setLaunchPending] = useState<{
+    reason: string;
+    delaySeconds: number;
+  }>();
+  useEffect(() => {
+    if (!window.arcSatellite) return;
+    void Promise.all([
+      window.arcSatellite.getStatus(),
+      window.arcSatellite.getConfig(),
+      window.arcSatellite.getSystemStats(),
+      window.arcSatellite.getBranding(),
+      window.arcSatellite.getActivity(),
+    ]).then(([s, c, system, branding, history]) => {
+      setStatus(s);
+      setConfig(c);
+      setStats(system);
+      setActivity(history.slice(-500).reverse());
+      setBrandName(branding.platform_name);
+      setBrandLogo(branding.logo_url ?? undefined);
+      setLogoOnly(branding.logo_only);
+      const root = document.documentElement.style;
+      const values: Array<[string, string | null | undefined]> = [
+        ["--arc-primary", branding.primary_colour],
+        ["--arc-accent", branding.accent_colour],
+        ["--arc-bg", branding.background_colour],
+        ["--arc-text", branding.text_colour],
+        ["--arc-muted-bg", branding.muted_colour],
+        ["--arc-sidebar", branding.sidebar_background_colour],
+        ["--arc-sidebar-text", branding.sidebar_text_colour],
+        ["--arc-sidebar-hover", branding.sidebar_hover_background_colour],
+        ["--arc-sidebar-selected", branding.sidebar_selected_background_colour],
+        ["--arc-border", branding.border_colour],
+        [
+          "--arc-radius",
+          branding.corner_radius_px !== null &&
+          branding.corner_radius_px !== undefined
+            ? `${branding.corner_radius_px}px`
+            : undefined,
+        ],
+        [
+          "--arc-font-size",
+          branding.base_font_size_px
+            ? `${branding.base_font_size_px}px`
+            : undefined,
+        ],
+        [
+          "--arc-input-height",
+          branding.input_height_px
+            ? `${branding.input_height_px}px`
+            : undefined,
+        ],
+        ["--arc-font-family", branding.font_family],
+      ];
+      values.forEach(([key, value]) => {
+        if (value) root.setProperty(key, value);
+      });
+    });
+    const off = [
+      window.arcSatellite.onStatus(setStatus),
+      window.arcSatellite.onConfig(setConfig),
+      window.arcSatellite.onSystemStats(setStats),
+      window.arcSatellite.onActivity((entry) =>
+        setActivity((current) => [entry, ...current].slice(0, 500)),
+      ),
+      window.arcSatellite.onLaunchScheduled(setLaunchPending),
+      window.arcSatellite.onLaunchCancelled(() => setLaunchPending(undefined)),
+    ];
+    return () => off.forEach((dispose) => dispose());
+  }, []);
+  const save = async (next: SatelliteConfig): Promise<void> => {
+    const saved = await window.arcSatellite.updateConfig(next);
+    setConfig(saved);
+  };
+  const body = useMemo(() => {
+    if (!config) return <div className="empty">Loading configuration…</div>;
+    switch (page) {
+      case "Overview":
+        return <Overview status={status} stats={stats} activity={activity} />;
+      case "Trigger Events":
+        return <Triggers config={config} save={save} />;
+      case "Activity Log":
+        return (
+          <ActivityLog activity={activity} clear={() => setActivity([])} />
+        );
+      case "Settings":
+        return <Settings config={config} save={save} />;
+      case "App Launcher":
+        return <Launcher config={config} save={save} />;
+      case "System Monitor":
+        return (
+          <Monitor
+            stats={stats}
+            config={config}
+            save={save}
+            openConsole={() => setConsoleOpen(true)}
+          />
+        );
+    }
+  }, [page, config, status, stats, activity]);
+  const serverState =
+    status.cloud === "connected"
+      ? "Connected"
+      : status.cloud === "auth-failed"
+        ? "Authentication failed"
+        : `${status.cloud.charAt(0).toUpperCase()}${status.cloud.slice(1)}`;
+  const appState = status.localAppConnected
+    ? "Connected"
+    : status.localTransport === "error"
+      ? "Port error"
+      : "Waiting";
+  return (
+    <main className="shell">
+      <aside className="sidebar">
+        <div className={`brand ${brandLogo ? "has-logo" : ""} ${logoOnly ? "logo-only" : ""}`}>
+          {brandLogo ? (
+            <img src={brandLogo} alt={brandName} />
+          ) : (
+            <span className="brand-mark">A</span>
+          )}
+          {!logoOnly && (
+            <span>
+              {brandName}
+              <small>ARC Client</small>
+            </span>
+          )}
+        </div>
+        <nav>
+          {pages.map((item) => (
+            <button
+              className={page === item ? "active" : ""}
+              key={item}
+              onClick={() => setPage(item)}
+            >
+              {item}
+            </button>
+          ))}
+        </nav>
+        <div className="device">
+          <small>CLIENT ID</small>
+          <strong>
+            {config?.name === "ARC Satellite"
+              ? "ARC Client"
+              : (config?.name ?? "Initialising…")}
+          </strong>
+          <span>{config?.clientId.slice(0, 8).toUpperCase()}</span>
+        </div>
+      </aside>
+      <section className="content">
+        <header>
+          <strong>{page}</strong>
+          <div className="connection-statuses">
+            <ConnectionBadge
+              label="Server"
+              state={serverState}
+              connected={status.cloud === "connected"}
+            />
+            <ConnectionBadge
+              label="App"
+              state={appState}
+              connected={status.localAppConnected}
+            />
+          </div>
+        </header>
+        <div className="page">{body}</div>
+      </section>
+      {consoleOpen && (
+        <SystemConsole
+          activity={activity}
+          close={() => setConsoleOpen(false)}
+        />
+      )}
+      {launchPending && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <h2>Application Launch</h2>
+            <p>
+              The configured application will launch in{" "}
+              {launchPending.delaySeconds} seconds.
+            </p>
+            <button
+              onClick={() =>
+                void window.arcSatellite
+                  .cancelLaunch()
+                  .then(() => setLaunchPending(undefined))
+              }
+            >
+              Cancel Launch
+            </button>
+          </div>
+        </div>
+      )}
+    </main>
+  );
 }
-createRoot(document.getElementById("root")!).render(<React.StrictMode><App /></React.StrictMode>);
+createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+);

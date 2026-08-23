@@ -2,7 +2,7 @@
   "name": "arc-satellite-client",
   "version": "0.1.0",
   "private": true,
-  "description": "ARC Satellite desktop client",
+  "description": "ARC desktop client",
   "main": ".vite/build/main.js",
   "scripts": {
     "dev": "electron-forge start",

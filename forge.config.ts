@@ -7,8 +7,8 @@ import { VitePlugin } from "@electron-forge/plugin-vite";
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
-    name: "ARC Satellite",
-    executableName: "arc-satellite",
+    name: "ARC Client",
+    executableName: "arc-client",
   },
   makers: [new MakerSquirrel({}), new MakerZIP({}, ["darwin"]), new MakerDMG({})],
   plugins: [

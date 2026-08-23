@@ -229,7 +229,7 @@ export class SatelliteCore {
 }
 
 export const createTestConfig = (patch: Partial<SatelliteConfig> = {}): SatelliteConfig => ({
-  schemaVersion: 1, clientId: randomUUID(), name: "ARC Satellite", description: "", zone: "", applicationType: "",
+  schemaVersion: 1, clientId: randomUUID(), name: "ARC Client", description: "", zone: "", applicationType: "",
   serverUrl: "http://localhost:8080", localWsPort: 25585, localHttpEnabled: true, localHttpPort: 25586,
   localTcpEnabled: true, localTcpPort: 25587, localUdpEnabled: true, localUdpPort: 25588, triggers: [],
   launcher: { type: "none", path: "", script: "", onConnect: false, onSession: false, delaySeconds: 5, queueSession: true, autoRelaunch: false, relaunchCooldownSeconds: 60 },
