@@ -65,6 +65,23 @@ const PageIcon = ({ page }: { page: Page }): React.JSX.Element => {
     </svg>
   );
 };
+
+const TrashIcon = (): React.JSX.Element => (
+  <svg
+    aria-hidden="true"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M3 6h18" />
+    <path d="M8 6V4h8v2" />
+    <path d="m19 6-1 14H6L5 6" />
+    <path d="M10 11v5M14 11v5" />
+  </svg>
+);
 type ActivityPreferences = { showAcks: boolean; showPing: boolean };
 const Badge = ({
   good,
@@ -424,7 +441,9 @@ function Triggers({
               <p>{trigger.description || "No description"}</p>
             </div>
             <button
-              className="icon"
+              className="trash-button"
+              aria-label={`Delete ${trigger.name}`}
+              title={`Delete ${trigger.name}`}
               onClick={() =>
                 void save({
                   ...config,
@@ -434,7 +453,7 @@ function Triggers({
                 })
               }
             >
-              Delete
+              <TrashIcon />
             </button>
           </article>
         ))}

@@ -449,6 +449,32 @@ button.primary {
   background: #fff;
   border-color: #dc8d86;
 }
+.trash-button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 32px;
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: max(0px, calc(var(--arc-radius) - 4px));
+  background: transparent;
+  color: #dc2626;
+}
+.trash-button svg {
+  width: 18px;
+  height: 18px;
+}
+.trash-button:hover {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  filter: none;
+}
+.trash-button:focus-visible {
+  outline: 2px solid #ef4444;
+  outline-offset: 2px;
+}
 .form {
   padding: 22px;
 }
