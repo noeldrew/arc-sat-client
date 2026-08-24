@@ -14,6 +14,7 @@ declare global {
       cancelNetworkTest(): Promise<boolean>;
       getActivity(): Promise<import("../core/events").ActivityEntry[]>;
       openConsole(): Promise<void>;
+      setTitlebarColors(background: string, foreground: string): Promise<void>;
       getPortConflict(): Promise<{ port: number; pid: number; command: string; user: string } | undefined>;
       recoverPort(pid: number): Promise<boolean>;
       launchApp(): Promise<boolean>;

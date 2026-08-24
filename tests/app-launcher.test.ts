@@ -20,4 +20,25 @@ describe("AppLauncher", () => {
     expect(launcher.launch("cloud-connect")).toBe(false);
     expect(activity[0]?.message).toMatchObject({ type: "app-launch-skipped", reason: "cloud-connect" });
   });
+
+  it("blocks every launch while the local app transport is unavailable", () => {
+    const events = new SatelliteEvents();
+    const activity: ActivityEntry[] = [];
+    events.on("activity", (entry) => activity.push(entry));
+    const config = createTestConfig({
+      launcher: {
+        type: "file", path: "/Applications/Zombears.app", script: "", onConnect: false,
+        onClientStart: true, clientStartDelaySeconds: 0, onSession: false, delaySeconds: 0,
+        queueSession: true, autoRelaunch: false, relaunchCooldownSeconds: 60,
+      },
+    });
+    const launcher = new AppLauncher(() => config, events, () => false, () => false);
+
+    expect(launcher.launch("manual")).toBe(false);
+    launcher.schedule("client-start");
+    expect(activity.map((entry) => entry.message)).toEqual([
+      expect.objectContaining({ type: "app-launch-blocked", reason: "manual" }),
+      expect.objectContaining({ type: "app-launch-blocked", reason: "client-start" }),
+    ]);
+  });
 });

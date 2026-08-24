@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld("arcSatellite", {
   cancelNetworkTest: () => ipcRenderer.invoke("satellite:cancel-network-test"),
   getActivity: () => ipcRenderer.invoke("satellite:get-activity"),
   openConsole: () => ipcRenderer.invoke("satellite:open-console"),
+  setTitlebarColors: (background: string, foreground: string) => ipcRenderer.invoke("satellite:set-titlebar-colors", background, foreground),
   getPortConflict: () => ipcRenderer.invoke("satellite:get-port-conflict"),
   recoverPort: (pid: number) => ipcRenderer.invoke("satellite:recover-port", pid),
   launchApp: () => ipcRenderer.invoke("satellite:launch-app"),

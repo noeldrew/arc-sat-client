@@ -90,8 +90,8 @@ const createWindow = async (): Promise<void> => {
       ? { trafficLightPosition: { x: 14, y: 11 } }
       : {
           titleBarOverlay: {
-            color: "#ffffff",
-            symbolColor: "#14213d",
+            color: "#101a35",
+            symbolColor: "#ffffff",
             height: 38,
           },
         }),
@@ -251,6 +251,10 @@ const startCore = async (): Promise<void> => {
     structuredClone(recentActivity),
   );
   ipcMain.handle("satellite:open-console", () => openConsoleWindow());
+  ipcMain.handle("satellite:set-titlebar-colors", (_event, background: string, foreground: string) => {
+    if (process.platform !== "darwin" && mainWindow && !mainWindow.isDestroyed())
+      mainWindow.setTitleBarOverlay({ color: background, symbolColor: foreground, height: 38 });
+  });
   ipcMain.handle("satellite:get-port-conflict", async () => {
     const status = core?.getStatus();
     if (!core || status?.localTransport !== "error") return undefined;

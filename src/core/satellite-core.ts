@@ -36,6 +36,7 @@ export class SatelliteCore {
   private lastNetworkResult?: NetworkTestResult;
   private startupNetworkReady = false;
   private deferredLaunchReason?: "cloud-connect" | "session";
+  private blockedLaunchReason?: "manual" | "client-start" | "cloud-connect" | "session" | "process-stopped";
   private status: SatelliteStatus = { cloud: "stopped", localTransport: "stopped", localAppConnected: false, localAppRegistered: false, triggersRegistered: false };
 
   constructor(private readonly options: SatelliteCoreOptions) {
@@ -43,7 +44,12 @@ export class SatelliteCore {
     this.cloud = new CloudClient(this.config, this.events);
     this.local = new LocalWebSocketTransport(this.events);
     this.monitor = new SystemMonitor(() => this.config, this.events);
-    this.launcher = new AppLauncher(() => this.config, this.events, () => this.local.isAppConnected() || this.monitor.isAnyMonitoredProcessRunning());
+    this.launcher = new AppLauncher(
+      () => this.config,
+      this.events,
+      () => this.local.isAppConnected() || this.monitor.isAnyMonitoredProcessRunning(),
+      () => this.status.localTransport === "connected",
+    );
     this.aux = new AuxTransports((message, source) => this.handleAlternative(message, source), this.events);
     this.ugc = new UgcService(() => this.config);
     this.network = new NetworkDiagnostics(() => this.config, this.events, options.networkHistoryPath);
@@ -113,6 +119,16 @@ export class SatelliteCore {
       localTransport,
       ...(localTransport === "connected" ? { transportError: undefined } : {}),
     }));
+    this.local.on("state", (localTransport) => {
+      if (localTransport !== "connected" || !this.blockedLaunchReason) return;
+      const reason = this.blockedLaunchReason;
+      this.blockedLaunchReason = undefined;
+      if (reason === "manual") this.launcher.launch(reason);
+      else this.launcher.schedule(reason);
+    });
+    this.launcher.on("blocked", (reason) => {
+      this.blockedLaunchReason = reason as typeof this.blockedLaunchReason;
+    });
     this.local.on("transport-error", (transportError) => this.updateStatus({ transportError }));
     this.local.on("app-state", (localAppConnected) => this.updateStatus({
       localAppConnected,

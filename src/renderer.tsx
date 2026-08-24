@@ -1635,6 +1635,10 @@ function App(): React.JSX.Element {
       values.forEach(([key, value]) => {
         if (value) root.setProperty(key, value);
       });
+      void window.arcSatellite.setTitlebarColors(
+        branding.sidebar_background_colour ?? "#101a35",
+        branding.sidebar_text_colour ?? "#ffffff",
+      );
     });
     return () => off.forEach((dispose) => dispose());
   }, []);

@@ -140,9 +140,8 @@ button {
   justify-content: center;
   height: 38px;
   padding: 0 140px;
-  background: white;
-  border-bottom: 1px solid var(--arc-border);
-  color: var(--arc-text);
+  background: var(--arc-sidebar);
+  color: var(--arc-sidebar-text);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.01em;
