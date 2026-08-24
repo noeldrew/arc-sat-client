@@ -93,14 +93,14 @@ const Badge = ({
 const ConnectionBadge = ({
   label,
   state,
-  connected,
+  level,
 }: {
   label: string;
   state: string;
-  connected: boolean;
+  level: "red" | "amber" | "green";
 }) => (
   <span
-    className={`connection-badge ${connected ? "connected" : "disconnected"}`}
+    className={`connection-badge ${level}`}
   >
     <i />
     <strong>{label}</strong>
@@ -1290,6 +1290,8 @@ function App(): React.JSX.Element {
     cloud: "stopped",
     localTransport: "stopped",
     localAppConnected: false,
+    localAppRegistered: false,
+    triggersRegistered: false,
   });
   const [config, setConfig] = useState<SatelliteConfig>();
   const [stats, setStats] = useState<SystemSnapshot>();
@@ -1370,6 +1372,8 @@ function App(): React.JSX.Element {
           cloud: "connected",
           localTransport: "connected",
           localAppConnected: true,
+          localAppRegistered: true,
+          triggersRegistered: true,
         });
         const at = new Date().toISOString();
         setActivity([
@@ -1520,17 +1524,43 @@ function App(): React.JSX.Element {
         );
     }
   }, [page, config, status, stats, activity, activityPreferences]);
+  const serverLevel: "red" | "amber" | "green" =
+    status.cloud === "connected"
+      ? "green"
+      : ["connecting", "registering", "reconnecting", "starting"].includes(status.cloud)
+        ? "amber"
+        : "red";
   const serverState =
     status.cloud === "connected"
-      ? "Connected"
+      ? "Authenticated"
       : status.cloud === "auth-failed"
         ? "Authentication failed"
         : `${status.cloud.charAt(0).toUpperCase()}${status.cloud.slice(1)}`;
-  const appState = status.localAppConnected
-    ? "Connected"
+  const appLevel: "red" | "amber" | "green" = status.localAppRegistered
+    ? "green"
+    : status.localAppConnected
+      ? "amber"
+      : "red";
+  const appState = status.localAppRegistered
+    ? "Registered"
+    : status.localAppConnected
+      ? "Awaiting SDK hello"
     : status.localTransport === "error"
       ? "Port error"
-      : "Waiting";
+      : "No app connected";
+  const systemLevel: "red" | "amber" | "green" =
+    serverLevel === "red" || status.localTransport === "error"
+      ? "red"
+      : serverLevel === "green" && status.localAppRegistered && status.triggersRegistered
+        ? "green"
+        : "amber";
+  const systemState = systemLevel === "green"
+    ? "Live"
+    : systemLevel === "red"
+      ? status.localTransport === "error" ? "Local transport error" : "Unavailable"
+      : status.localAppRegistered && !status.triggersRegistered
+        ? "Registering triggers"
+        : "Waiting for app";
   return (
     <main className="shell">
       <aside className="sidebar">
@@ -1578,12 +1608,17 @@ function App(): React.JSX.Element {
             <ConnectionBadge
               label="Server"
               state={serverState}
-              connected={status.cloud === "connected"}
+              level={serverLevel}
             />
             <ConnectionBadge
               label="App"
               state={appState}
-              connected={status.localAppConnected}
+              level={appLevel}
+            />
+            <ConnectionBadge
+              label="System"
+              state={systemState}
+              level={systemLevel}
             />
           </div>
         </header>

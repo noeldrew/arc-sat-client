@@ -193,13 +193,21 @@ header {
   border-radius: 50%;
   background: #dc3f3f;
 }
-.connection-badge.connected {
+.connection-badge.green {
   border-color: #a7e4bf;
   background: #f0fdf4;
   color: #15743b;
 }
-.connection-badge.connected i {
+.connection-badge.green i {
   background: #18a957;
+}
+.connection-badge.amber {
+  color: #9a6700;
+  border-color: #f2cc60;
+  background: #fff8c5;
+}
+.connection-badge.amber i {
+  background: #d29922;
 }
 .connection-badge strong {
   color: inherit;

@@ -20,6 +20,8 @@ let latestStatus: SatelliteStatus = {
   cloud: "stopped",
   localTransport: "stopped",
   localAppConnected: false,
+  localAppRegistered: false,
+  triggersRegistered: false,
 };
 const recentActivity: ActivityEntry[] = [];
 

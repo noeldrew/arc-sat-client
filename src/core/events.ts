@@ -13,6 +13,8 @@ export interface SatelliteStatus {
   cloud: ConnectionState;
   localTransport: ConnectionState;
   localAppConnected: boolean;
+  localAppRegistered: boolean;
+  triggersRegistered: boolean;
   cloudSessionId?: string;
   localSessionId?: string;
   transportError?: string;

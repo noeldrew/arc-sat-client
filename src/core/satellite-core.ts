@@ -30,7 +30,7 @@ export class SatelliteCore {
   private cloudSessionId?: string;
   private customer?: Record<string, unknown>;
   private lastHealthAlert?: boolean;
-  private status: SatelliteStatus = { cloud: "stopped", localTransport: "stopped", localAppConnected: false };
+  private status: SatelliteStatus = { cloud: "stopped", localTransport: "stopped", localAppConnected: false, localAppRegistered: false, triggersRegistered: false };
 
   constructor(private readonly options: SatelliteCoreOptions) {
     this.config = options.config;
@@ -73,19 +73,28 @@ export class SatelliteCore {
   }
 
   private wire(): void {
-    this.cloud.on("state", (cloud) => this.updateStatus({ cloud }));
+    this.cloud.on("state", (cloud) => this.updateStatus({
+      cloud,
+      ...(cloud === "connected" ? {} : { triggersRegistered: false }),
+    }));
     this.cloud.on("registered", (ack: { api_token?: string; canonical_client_id?: string }) => {
       let changed = false;
       if (ack.api_token) { this.config.apiToken = ack.api_token; changed = true; }
       if (ack.canonical_client_id) { this.config.clientId = ack.canonical_client_id; changed = true; }
       if (changed) void this.options.saveConfig(this.config);
       if (this.config.launcher.onConnect && !this.local.isAppConnected()) this.launcher.schedule("cloud-connect");
+      if (this.status.localAppRegistered) this.sendTriggerDefinitions();
     });
     this.cloud.on("message", (message: CloudInboundMessage) => this.handleCloud(message));
     this.local.on("state", (localTransport) => this.updateStatus({ localTransport }));
     this.local.on("transport-error", (transportError) => this.updateStatus({ transportError }));
-    this.local.on("app-state", (localAppConnected) => this.updateStatus({ localAppConnected }));
+    this.local.on("app-state", (localAppConnected) => this.updateStatus({
+      localAppConnected,
+      localAppRegistered: false,
+      triggersRegistered: false,
+    }));
     this.local.on("hello", (message: Extract<LocalInboundMessage, { type: "hello" }>, localSessionId: string) => {
+      this.updateStatus({ localAppRegistered: true, triggersRegistered: false });
       this.mergeTriggers(message.triggers ?? []);
       this.updateStatus({ localSessionId });
       this.local.send({ type: "ack", status: "ok", session_id: this.cloudSessionId });
@@ -116,6 +125,11 @@ export class SatelliteCore {
   }
 
   private handleCloud(message: CloudInboundMessage): void {
+    if (message.type === "ack" && message.ref === "triggers-update") {
+      this.updateStatus({ triggersRegistered: true });
+      this.events.log("system", { type: "triggers-registered" });
+      return;
+    }
     if (message.type === "session_start") {
       this.cloudSessionId = message.session_id;
       this.customer = message.customer as Record<string, unknown> | undefined;
@@ -197,12 +211,18 @@ export class SatelliteCore {
   }
 
   private mergeTriggers(incoming: TriggerDefinition[]): void {
-    if (!incoming.length) return;
-    const incomingIds = new Set(incoming.map((trigger) => trigger.id));
-    this.config.triggers = [...incoming, ...this.config.triggers.filter((trigger) => !incomingIds.has(trigger.id))];
-    void this.options.saveConfig(this.config);
+    if (incoming.length) {
+      const incomingIds = new Set(incoming.map((trigger) => trigger.id));
+      this.config.triggers = [...incoming, ...this.config.triggers.filter((trigger) => !incomingIds.has(trigger.id))];
+      void this.options.saveConfig(this.config);
+      this.events.emit("config", this.getConfig());
+    }
+    this.updateStatus({ triggersRegistered: false });
+    this.sendTriggerDefinitions();
+  }
+
+  private sendTriggerDefinitions(): void {
     this.cloud.send({ type: "triggers-update", client_id: this.config.clientId, triggers: this.config.triggers });
-    this.events.emit("config", this.getConfig());
   }
 
   private sendSessionStart(action: string): void {
