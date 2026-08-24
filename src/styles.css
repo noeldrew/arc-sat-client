@@ -869,20 +869,93 @@ textarea {
   margin: 0;
   color: var(--arc-muted);
 }
-.console-modal pre {
+.console-auto-scroll {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--arc-text);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.console-auto-scroll input {
+  accent-color: var(--arc-primary);
+}
+.console-entries {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  margin: 0;
-  padding: 18px;
   border-radius: var(--arc-radius);
   background: #0a1426;
-  color: #e5edf9;
-  font:
-    13px/1.55 ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    monospace;
+  color: #dbe7f7;
+  font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.console-empty {
+  padding: 18px;
+  color: #91a3bd;
+}
+.console-entry {
+  border-bottom: 1px solid #1d2b41;
+}
+.console-line {
+  height: 27px;
+  display: grid;
+  grid-template-columns: 52px 78px 72px minmax(110px, auto) 1fr;
+  align-items: center;
+  gap: 9px;
+  padding-right: 12px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.console-line:hover {
+  background: #101e33;
+}
+.console-line-number {
+  align-self: stretch;
+  border: 0;
+  border-radius: 0;
+  padding: 0 8px;
+  background: #101c30;
+  color: #7185a3;
+  font: inherit;
+  text-align: right;
+  cursor: pointer;
+}
+.console-line-number:hover,
+.console-entry.expanded .console-line-number {
+  background: var(--arc-primary);
+  color: white;
+}
+.console-line time {
+  color: #8fa2be;
+}
+.console-line .direction {
+  min-width: 0;
+  padding: 2px 5px;
+  font-size: 9px;
+  text-align: center;
+}
+.console-line strong {
+  color: #f0f5fc;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.console-line code {
+  color: #8295b1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.console-modal .syntax-json {
+  margin: 0;
+  padding: 14px 18px 16px 61px;
+  border-radius: var(--arc-radius);
+  background: #07101f;
+  color: #c9d7e8;
+  font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
   white-space: pre-wrap;
   word-break: break-word;
 }
+.json-key { color: #7dd3fc; }
+.json-string { color: #a7f3d0; }
+.json-number { color: #fdba74; }
+.json-boolean { color: #c4b5fd; }
+.json-null { color: #fda4af; }

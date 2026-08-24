@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { SatelliteConfig } from "./core/config";
 import type { ActivityEntry, SatelliteStatus } from "./core/events";
@@ -1151,12 +1151,44 @@ function SystemConsole({
   activity: ActivityEntry[];
   close: () => void;
 }): React.JSX.Element {
-  const text = activity
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [expanded, setExpanded] = useState<string>();
+  const scrollArea = useRef<HTMLDivElement>(null);
+  const entries = useMemo(() => [...activity].reverse(), [activity]);
+  const text = entries
     .map(
       (entry) =>
         `[${new Date(entry.at).toLocaleTimeString()}] ${entry.direction.toUpperCase()} ${JSON.stringify(entry.message, null, 2)}`,
     )
     .join("\n\n");
+  useEffect(() => {
+    if (!autoScroll || !scrollArea.current) return;
+    scrollArea.current.scrollTop = scrollArea.current.scrollHeight;
+  }, [entries, autoScroll]);
+
+  const syntaxJson = (value: Record<string, unknown>): React.JSX.Element => {
+    const json = JSON.stringify(value, null, 2);
+    const tokens = json.split(
+      /(\"(?:\\.|[^\"\\])*\"\s*:|\"(?:\\.|[^\"\\])*\"|\b(?:true|false|null)\b|-?\b\d+(?:\.\d+)?(?:e[+-]?\d+)?\b)/gi,
+    );
+    return (
+      <pre className="syntax-json">
+        {tokens.map((token, index) => {
+          let kind = "";
+          if (/^\".*\"\s*:$/.test(token)) kind = "json-key";
+          else if (/^\"/.test(token)) kind = "json-string";
+          else if (/^(true|false)$/.test(token)) kind = "json-boolean";
+          else if (token === "null") kind = "json-null";
+          else if (/^-?\d/.test(token)) kind = "json-number";
+          return kind ? (
+            <span className={kind} key={index}>{token}</span>
+          ) : (
+            token
+          );
+        })}
+      </pre>
+    );
+  };
   return (
     <div className="modal-backdrop">
       <section className="console-modal">
@@ -1168,13 +1200,48 @@ function SystemConsole({
             </p>
           </div>
           <div className="actions">
+            <label className="console-auto-scroll">
+              <input
+                type="checkbox"
+                checked={autoScroll}
+                onChange={(event) => setAutoScroll(event.target.checked)}
+              />
+              Auto-scroll
+            </label>
             <button onClick={() => void navigator.clipboard.writeText(text)}>
               Copy Logs
             </button>
             <button onClick={close}>Close</button>
           </div>
         </div>
-        <pre>{text || "No system events have been recorded yet."}</pre>
+        <div className="console-entries" ref={scrollArea}>
+          {!entries.length && (
+            <div className="console-empty">No system events have been recorded yet.</div>
+          )}
+          {entries.map((entry, index) => {
+            const key = `${entry.at}-${entry.direction}-${JSON.stringify(entry.message)}`;
+            const isExpanded = expanded === key;
+            return (
+              <div className={`console-entry ${isExpanded ? "expanded" : ""}`} key={key}>
+                <div className="console-line">
+                  <button
+                    className="console-line-number"
+                    aria-label={`${isExpanded ? "Hide" : "View"} full message for line ${index + 1}`}
+                    aria-expanded={isExpanded}
+                    onClick={() => setExpanded(isExpanded ? undefined : key)}
+                  >
+                    {String(index + 1).padStart(4, "0")}
+                  </button>
+                  <time>{new Date(entry.at).toLocaleTimeString()}</time>
+                  <span className={`direction ${entry.direction}`}>{entry.direction}</span>
+                  <strong>{eventName(entry)}</strong>
+                  <code>{JSON.stringify(entry.message)}</code>
+                </div>
+                {isExpanded && syntaxJson(entry.message)}
+              </div>
+            );
+          })}
+        </div>
       </section>
     </div>
   );
@@ -1296,6 +1363,20 @@ function App(): React.JSX.Element {
       }
       return;
     }
+    let liveStatusSeen = false;
+    const off = [
+      window.arcSatellite.onStatus((next) => {
+        liveStatusSeen = true;
+        setStatus(next);
+      }),
+      window.arcSatellite.onConfig(setConfig),
+      window.arcSatellite.onSystemStats(setStats),
+      window.arcSatellite.onActivity((entry) =>
+        setActivity((current) => [entry, ...current].slice(0, 1000)),
+      ),
+      window.arcSatellite.onLaunchScheduled(setLaunchPending),
+      window.arcSatellite.onLaunchCancelled(() => setLaunchPending(undefined)),
+    ];
     void Promise.all([
       window.arcSatellite.getStatus(),
       window.arcSatellite.getConfig(),
@@ -1303,10 +1384,22 @@ function App(): React.JSX.Element {
       window.arcSatellite.getBranding(),
       window.arcSatellite.getActivity(),
     ]).then(([s, c, system, branding, history]) => {
-      setStatus(s);
+      if (!liveStatusSeen) setStatus(s);
       setConfig(c);
       setStats(system);
-      setActivity(history.slice(-500).reverse());
+      setActivity((current) => {
+        const combined = [...current, ...history.slice(-1000).reverse()];
+        const seen = new Set<string>();
+        return combined
+          .filter((entry) => {
+            const key = `${entry.at}-${entry.direction}-${JSON.stringify(entry.message)}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .sort((a, b) => b.at.localeCompare(a.at))
+          .slice(0, 1000);
+      });
       setBrandName(branding.platform_name);
       setBrandLogo(branding.logo_url ?? undefined);
       setLogoOnly(branding.logo_only);
@@ -1347,16 +1440,6 @@ function App(): React.JSX.Element {
         if (value) root.setProperty(key, value);
       });
     });
-    const off = [
-      window.arcSatellite.onStatus(setStatus),
-      window.arcSatellite.onConfig(setConfig),
-      window.arcSatellite.onSystemStats(setStats),
-      window.arcSatellite.onActivity((entry) =>
-        setActivity((current) => [entry, ...current].slice(0, 500)),
-      ),
-      window.arcSatellite.onLaunchScheduled(setLaunchPending),
-      window.arcSatellite.onLaunchCancelled(() => setLaunchPending(undefined)),
-    ];
     return () => off.forEach((dispose) => dispose());
   }, []);
   const save = async (next: SatelliteConfig): Promise<void> => {
