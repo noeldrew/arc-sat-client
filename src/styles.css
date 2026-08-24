@@ -40,9 +40,29 @@ button {
   height: 100vh;
   display: grid;
   grid-template-columns: 16rem 1fr;
+  grid-template-rows: 38px minmax(0, 1fr);
   overflow: hidden;
 }
+.custom-titlebar {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  padding: 0 140px;
+  background: white;
+  border-bottom: 1px solid var(--arc-border);
+  color: var(--arc-text);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  user-select: none;
+  -webkit-app-region: drag;
+}
 .sidebar {
+  grid-column: 1;
+  grid-row: 2;
   background: var(--arc-sidebar);
   color: var(--arc-sidebar-text);
   padding: 0;
@@ -50,7 +70,7 @@ button {
   flex-direction: column;
   position: sticky;
   top: 0;
-  height: 100vh;
+  height: 100%;
   overflow: hidden;
 }
 .brand {
@@ -151,8 +171,10 @@ nav button.active {
   font-size: 10px;
 }
 .content {
+  grid-column: 2;
+  grid-row: 2;
   min-width: 0;
-  height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -947,6 +969,26 @@ textarea {
 .modal p {
   color: var(--arc-muted);
   line-height: 1.5;
+}
+.trigger-modal {
+  width: min(520px, calc(100vw - 40px));
+}
+.trigger-dialog-fields {
+  display: grid;
+  gap: 16px;
+  margin: 20px 0;
+}
+.trigger-dialog-fields textarea {
+  resize: vertical;
+  min-height: 92px;
+}
+.dialog-error {
+  margin: 0 0 16px !important;
+  color: #b42318 !important;
+  font-size: 13px;
+}
+.dialog-actions {
+  justify-content: flex-end;
 }
 .port-recovery-modal {
   width: min(520px, calc(100vw - 40px));

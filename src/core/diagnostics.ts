@@ -23,4 +23,20 @@ export class Diagnostics {
     let log = ""; try { log = await readFile(this.logPath, "utf8"); } catch { /* no log yet */ }
     await writeFile(target, JSON.stringify({ generatedAt: new Date().toISOString(), config: redact(config), status, stats, recentLog: log.split("\n").filter(Boolean).slice(-500).map((line) => JSON.parse(line)) }, null, 2));
   }
+
+  async exportLogs(target: string): Promise<void> {
+    const read = async (file: string): Promise<string> => {
+      try { return await readFile(file, "utf8"); } catch { return ""; }
+    };
+    const content = `${await read(`${this.logPath}.1`)}${await read(this.logPath)}`;
+    const entries = content
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as ActivityEntry);
+    await writeFile(
+      target,
+      `${JSON.stringify({ exportedAt: new Date().toISOString(), entries }, null, 2)}\n`,
+      { mode: 0o600 },
+    );
+  }
 }

@@ -1,4 +1,5 @@
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu } from "electron";
+import type { MenuItemConstructorOptions } from "electron";
 import started from "electron-squirrel-startup";
 import path from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
@@ -16,6 +17,7 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 if (started) app.quit();
 
 let core: SatelliteCore | undefined;
+let mainWindow: BrowserWindow | undefined;
 let consoleWindow: BrowserWindow | undefined;
 const headless = process.argv.includes("--headless");
 let latestStatus: SatelliteStatus = {
@@ -82,12 +84,27 @@ const createWindow = async (): Promise<void> => {
     show: false,
     backgroundColor: "#f5f7fb",
     fullscreen: core?.getConfig().clientFullscreen ?? false,
+    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",
+    ...(process.platform === "darwin"
+      ? { trafficLightPosition: { x: 14, y: 11 } }
+      : {
+          titleBarOverlay: {
+            color: "#ffffff",
+            symbolColor: "#14213d",
+            height: 38,
+          },
+        }),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
     },
+  });
+
+  mainWindow = window;
+  window.on("closed", () => {
+    if (mainWindow === window) mainWindow = undefined;
   });
 
   window.once("ready-to-show", () => window.show());
@@ -214,7 +231,7 @@ const startCore = async (): Promise<void> => {
     core.events.log("system", { type: "port-recovery-complete", port });
     return true;
   });
-  ipcMain.handle("satellite:export-diagnostics", async () => {
+  const exportDiagnostics = async (): Promise<boolean> => {
     const result = await dialog.showSaveDialog({
       title: "Export ARC Client Diagnostics",
       defaultPath: `arc-client-diagnostics-${new Date().toISOString().slice(0, 10)}.json`,
@@ -228,27 +245,27 @@ const startCore = async (): Promise<void> => {
       core!.monitor.getSnapshot(),
     );
     return true;
-  });
-  ipcMain.handle("satellite:export-template", async () => {
+  };
+  const exportSettings = async (): Promise<boolean> => {
     const result = await dialog.showSaveDialog({
-      title: "Save ARC Client Template",
-      defaultPath: "arc-client-template.json",
-      filters: [{ name: "ARC Client Template", extensions: ["json"] }],
+      title: "Export ARC Client Settings",
+      defaultPath: "arc-client-settings.json",
+      filters: [{ name: "ARC Client Settings", extensions: ["json"] }],
     });
     if (result.canceled || !result.filePath) return false;
     const { clientId: _clientId, ...portable } = core!.getConfig();
     await writeFile(
       result.filePath,
-      `${JSON.stringify({ templateVersion: 1, config: portable }, null, 2)}\n`,
+      `${JSON.stringify({ settingsVersion: 1, config: portable }, null, 2)}\n`,
       { mode: 0o600 },
     );
     return true;
-  });
-  ipcMain.handle("satellite:import-template", async () => {
+  };
+  const importSettings = async () => {
     const result = await dialog.showOpenDialog({
-      title: "Import ARC Client Template",
+      title: "Import ARC Client Settings",
       properties: ["openFile"],
-      filters: [{ name: "ARC Client Template", extensions: ["json"] }],
+      filters: [{ name: "ARC Client Settings", extensions: ["json"] }],
     });
     if (result.canceled || !result.filePaths[0]) return undefined;
     const parsed = JSON.parse(await readFile(result.filePaths[0], "utf8")) as {
@@ -265,7 +282,21 @@ const startCore = async (): Promise<void> => {
     });
     await core!.updateConfig(next);
     return next;
-  });
+  };
+  const exportLogs = async (): Promise<boolean> => {
+    const result = await dialog.showSaveDialog({
+      title: "Export ARC Client Logs",
+      defaultPath: `arc-client-logs-${new Date().toISOString().slice(0, 10)}.json`,
+      filters: [{ name: "JSON", extensions: ["json"] }],
+    });
+    if (result.canceled || !result.filePath) return false;
+    await diagnostics.exportLogs(result.filePath);
+    return true;
+  };
+  ipcMain.handle("satellite:export-diagnostics", exportDiagnostics);
+  ipcMain.handle("satellite:export-settings", exportSettings);
+  ipcMain.handle("satellite:import-settings", importSettings);
+  ipcMain.handle("satellite:export-logs", exportLogs);
   ipcMain.handle("satellite:choose-application", async () => {
     const result = await dialog.showOpenDialog({
       title: "Choose Application or File",
@@ -340,6 +371,45 @@ const startCore = async (): Promise<void> => {
     await core?.updateConfig(next);
     return next;
   });
+  const menu: MenuItemConstructorOptions[] = [
+    ...(process.platform === "darwin"
+      ? [{ label: app.name, submenu: [{ role: "about" as const }, { type: "separator" as const }, { role: "services" as const }, { type: "separator" as const }, { role: "hide" as const }, { role: "hideOthers" as const }, { role: "unhide" as const }, { type: "separator" as const }, { role: "quit" as const }] }]
+      : []),
+    {
+      label: "File",
+      submenu: [
+        { label: "Import Settings…", accelerator: "CmdOrCtrl+O", click: () => void importSettings() },
+        { label: "Export Settings…", accelerator: "CmdOrCtrl+Shift+S", click: () => void exportSettings() },
+        { type: "separator" },
+        { label: "Export Diagnostics…", click: () => void exportDiagnostics() },
+        { label: "Export Logs…", click: () => void exportLogs() },
+        { type: "separator" },
+        process.platform === "darwin" ? { role: "close" } : { role: "quit" },
+      ],
+    },
+    {
+      label: "Edit",
+      submenu: [
+        {
+          label: "Add Trigger…",
+          accelerator: "CmdOrCtrl+Shift+T",
+          click: () => mainWindow?.webContents.send("satellite:menu-add-trigger", true),
+        },
+        { type: "separator" },
+        { role: "undo" }, { role: "redo" }, { type: "separator" },
+        { role: "cut" }, { role: "copy" }, { role: "paste" }, { role: "selectAll" },
+      ],
+    },
+    {
+      label: "View",
+      submenu: [
+        { label: "System Console", accelerator: "CmdOrCtrl+Shift+C", click: () => void openConsoleWindow() },
+        { type: "separator" },
+        { role: "togglefullscreen" },
+      ],
+    },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(menu));
   await core.start();
 };
 
@@ -348,7 +418,7 @@ if (!hasLock) {
   app.quit();
 } else {
   app.on("second-instance", () => {
-    const window = BrowserWindow.getAllWindows()[0];
+    const window = mainWindow;
     if (window) {
       if (window.isMinimized()) window.restore();
       window.focus();

@@ -390,24 +390,48 @@ function Overview({
 function Triggers({
   config,
   save,
+  addRequest,
 }: {
   config: SatelliteConfig;
   save: (next: SatelliteConfig) => Promise<void>;
+  addRequest: number;
 }): React.JSX.Element {
   const [notice, setNotice] = useState("");
-  const add = (): void => {
-    const id = window
-      .prompt("Trigger ID (for example: game-completed)")
-      ?.trim();
-    if (!id) return;
-    const name = window.prompt("Display name", id)?.trim() || id;
-    void save({
-      ...config,
-      triggers: [...config.triggers, { id, name, description: "" }],
-    });
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState({ id: "", name: "", description: "" });
+  const [addError, setAddError] = useState("");
+  useEffect(() => {
+    if (addRequest > 0) setAdding(true);
+  }, [addRequest]);
+  const closeAdd = (): void => {
+    setAdding(false);
+    setDraft({ id: "", name: "", description: "" });
+    setAddError("");
   };
-  const importTemplate = async (): Promise<void> => {
-    const next = await window.arcSatellite.importTemplate();
+  const add = async (): Promise<void> => {
+    const id = draft.id.trim();
+    const name = draft.name.trim();
+    if (!id || !name) {
+      setAddError("Trigger ID and display name are required.");
+      return;
+    }
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) {
+      setAddError("Use lowercase letters, numbers and hyphens for the trigger ID.");
+      return;
+    }
+    if (config.triggers.some((trigger) => trigger.id === id)) {
+      setAddError("A trigger with this ID already exists.");
+      return;
+    }
+    await save({
+      ...config,
+      triggers: [...config.triggers, { id, name, description: draft.description.trim() }],
+    });
+    setNotice(`Added ${name}.`);
+    closeAdd();
+  };
+  const importSettings = async (): Promise<void> => {
+    const next = await window.arcSatellite.importSettings();
     if (next)
       setNotice(
         `Imported ${next.triggers.length} triggers and client settings. This client's ID was preserved.`,
@@ -424,17 +448,17 @@ function Triggers({
           <button
             onClick={() =>
               void window.arcSatellite
-                .exportTemplate()
+                .exportSettings()
                 .then(
                   (ok) =>
-                    ok && setNotice("Template saved. Client ID was excluded."),
+                    ok && setNotice("Settings exported. Client ID was excluded."),
                 )
             }
           >
-            Save Template
+            Export Settings
           </button>
-          <button onClick={() => void importTemplate()}>Import Template</button>
-          <button className="primary" onClick={add}>
+          <button onClick={() => void importSettings()}>Import Settings</button>
+          <button className="primary" onClick={() => setAdding(true)}>
             ＋ Add Trigger
           </button>
         </div>
@@ -469,6 +493,48 @@ function Triggers({
       {!config.triggers.length && (
         <div className="empty panel">
           Connect an ARC SDK application or add a trigger manually.
+        </div>
+      )}
+      {adding && (
+        <div className="modal-backdrop">
+          <section className="modal trigger-modal" role="dialog" aria-modal="true" aria-labelledby="add-trigger-title">
+            <h2 id="add-trigger-title">Add Trigger</h2>
+            <p>Define an event that can be registered with the ARC server.</p>
+            <div className="trigger-dialog-fields">
+              <label className="field">
+                <span>Trigger ID</span>
+                <input
+                  autoFocus
+                  value={draft.id}
+                  placeholder="game-completed"
+                  onChange={(event) => setDraft({ ...draft, id: event.target.value })}
+                />
+                <small>Lowercase letters, numbers and hyphens.</small>
+              </label>
+              <label className="field">
+                <span>Display Name</span>
+                <input
+                  value={draft.name}
+                  placeholder="Game Completed"
+                  onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+                />
+              </label>
+              <label className="field">
+                <span>Description</span>
+                <textarea
+                  rows={4}
+                  value={draft.description}
+                  placeholder="Explain when this trigger is sent."
+                  onChange={(event) => setDraft({ ...draft, description: event.target.value })}
+                />
+              </label>
+            </div>
+            {addError && <p className="dialog-error">{addError}</p>}
+            <div className="actions dialog-actions">
+              <button type="button" onClick={closeAdd}>Cancel</button>
+              <button type="button" className="primary" onClick={() => void add()}>Add Trigger</button>
+            </div>
+          </section>
         </div>
       )}
     </>
@@ -525,7 +591,7 @@ function Settings({
           </Field>
           <Field
             label="Client ID"
-            hint="Unique to this PC and never replaced when importing a template."
+            hint="Unique to this PC and never replaced when importing settings."
           >
             <input className="mono" readOnly value={draft.clientId} />
           </Field>
@@ -1323,6 +1389,7 @@ function ConsoleWindow(): React.JSX.Element {
 
 function App(): React.JSX.Element {
   const [page, setPage] = useState<Page>("Overview");
+  const [addTriggerRequest, setAddTriggerRequest] = useState(0);
   const [status, setStatus] = useState<SatelliteStatus>({
     cloud: "stopped",
     localTransport: "stopped",
@@ -1480,6 +1547,10 @@ function App(): React.JSX.Element {
       ),
       window.arcSatellite.onLaunchScheduled(setLaunchPending),
       window.arcSatellite.onLaunchCancelled(() => setLaunchPending(undefined)),
+      window.arcSatellite.onAddTrigger(() => {
+        setPage("Trigger Events");
+        setAddTriggerRequest((current) => current + 1);
+      }),
     ];
     void Promise.all([
       window.arcSatellite.getStatus(),
@@ -1564,7 +1635,7 @@ function App(): React.JSX.Element {
           />
         );
       case "Trigger Events":
-        return <Triggers config={config} save={save} />;
+        return <Triggers config={config} save={save} addRequest={addTriggerRequest} />;
       case "Activity Log":
         return (
           <ActivityLog
@@ -1589,7 +1660,7 @@ function App(): React.JSX.Element {
           />
         );
     }
-  }, [page, config, status, stats, activity, activityPreferences, networkTest]);
+  }, [page, config, status, stats, activity, activityPreferences, networkTest, addTriggerRequest]);
   const serverLevel: "red" | "amber" | "green" =
     status.cloud === "connected"
       ? "green"
@@ -1629,6 +1700,9 @@ function App(): React.JSX.Element {
         : "Waiting for app";
   return (
     <main className="shell">
+      <div className="custom-titlebar" aria-hidden="true">
+        <span>ARC Client</span>
+      </div>
       <aside className="sidebar">
         <div
           className={`brand ${brandLogo ? "has-logo" : ""} ${logoOnly ? "logo-only" : ""}`}

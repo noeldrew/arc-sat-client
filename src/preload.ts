@@ -23,8 +23,9 @@ contextBridge.exposeInMainWorld("arcSatellite", {
   launchApp: () => ipcRenderer.invoke("satellite:launch-app"),
   cancelLaunch: () => ipcRenderer.invoke("satellite:cancel-launch"),
   exportDiagnostics: () => ipcRenderer.invoke("satellite:export-diagnostics"),
-  exportTemplate: () => ipcRenderer.invoke("satellite:export-template"),
-  importTemplate: () => ipcRenderer.invoke("satellite:import-template"),
+  exportSettings: () => ipcRenderer.invoke("satellite:export-settings"),
+  importSettings: () => ipcRenderer.invoke("satellite:import-settings"),
+  exportLogs: () => ipcRenderer.invoke("satellite:export-logs"),
   chooseApplication: () => ipcRenderer.invoke("satellite:choose-application"),
   detectProcess: (selectedPath: string) => ipcRenderer.invoke("satellite:detect-process", selectedPath),
   getZones: () => ipcRenderer.invoke("satellite:get-zones"),
@@ -37,4 +38,5 @@ contextBridge.exposeInMainWorld("arcSatellite", {
   onNetworkTest: (listener: (value: unknown) => void) => subscribe("satellite:network-test", listener),
   onLaunchScheduled: (listener: (value: unknown) => void) => subscribe("satellite:launch-scheduled", listener),
   onLaunchCancelled: (listener: (value: unknown) => void) => subscribe("satellite:launch-cancelled", listener),
+  onAddTrigger: (listener: () => void) => subscribe("satellite:menu-add-trigger", listener),
 });

@@ -19,8 +19,9 @@ declare global {
       launchApp(): Promise<boolean>;
       cancelLaunch(): Promise<boolean>;
       exportDiagnostics(): Promise<boolean>;
-      exportTemplate(): Promise<boolean>;
-      importTemplate(): Promise<import("../core/config").SatelliteConfig | undefined>;
+      exportSettings(): Promise<boolean>;
+      importSettings(): Promise<import("../core/config").SatelliteConfig | undefined>;
+      exportLogs(): Promise<boolean>;
       chooseApplication(): Promise<string | undefined>;
       detectProcess(selectedPath: string): Promise<string>;
       getZones(): Promise<{ available: boolean; zones: Array<{ id: string; name: string }>; reason?: string }>;
@@ -33,6 +34,7 @@ declare global {
       onNetworkTest(listener: (value: import("../core/network-diagnostics").NetworkTestState) => void): () => void;
       onLaunchScheduled(listener: (value: { reason: string; delaySeconds: number }) => void): () => void;
       onLaunchCancelled(listener: () => void): () => void;
+      onAddTrigger(listener: () => void): () => void;
     };
   }
 }
