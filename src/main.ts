@@ -14,6 +14,7 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 if (started) app.quit();
 
 let core: SatelliteCore | undefined;
+let consoleWindow: BrowserWindow | undefined;
 const headless = process.argv.includes("--headless");
 let latestStatus: SatelliteStatus = {
   cloud: "stopped",
@@ -49,6 +50,41 @@ const createWindow = async (): Promise<void> => {
   } else {
     await window.loadFile(
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+    );
+  }
+};
+
+const openConsoleWindow = async (): Promise<void> => {
+  if (consoleWindow && !consoleWindow.isDestroyed()) {
+    if (consoleWindow.isMinimized()) consoleWindow.restore();
+    consoleWindow.focus();
+    return;
+  }
+  consoleWindow = new BrowserWindow({
+    width: 1100,
+    height: 720,
+    minWidth: 720,
+    minHeight: 420,
+    show: false,
+    title: "ARC Client System Console",
+    backgroundColor: "#0a1426",
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  consoleWindow.on("closed", () => { consoleWindow = undefined; });
+  consoleWindow.once("ready-to-show", () => consoleWindow?.show());
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    const url = new URL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    url.searchParams.set("view", "console");
+    await consoleWindow.loadURL(url.toString());
+  } else {
+    await consoleWindow.loadFile(
+      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+      { query: { view: "console" } },
     );
   }
 };
@@ -102,6 +138,7 @@ const startCore = async (): Promise<void> => {
   ipcMain.handle("satellite:get-activity", () =>
     structuredClone(recentActivity),
   );
+  ipcMain.handle("satellite:open-console", () => openConsoleWindow());
   ipcMain.handle("satellite:export-diagnostics", async () => {
     const result = await dialog.showSaveDialog({
       title: "Export ARC Client Diagnostics",

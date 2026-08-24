@@ -1147,9 +1147,11 @@ function Monitor({
 function SystemConsole({
   activity,
   close,
+  standalone = false,
 }: {
   activity: ActivityEntry[];
   close: () => void;
+  standalone?: boolean;
 }): React.JSX.Element {
   const [autoScroll, setAutoScroll] = useState(true);
   const [expanded, setExpanded] = useState<string>();
@@ -1190,8 +1192,8 @@ function SystemConsole({
     );
   };
   return (
-    <div className="modal-backdrop">
-      <section className="console-modal">
+    <div className={standalone ? "console-window" : "modal-backdrop"}>
+      <section className={`console-modal ${standalone ? "standalone" : ""}`}>
         <div className="console-title">
           <div>
             <h2>ARC Client System Console</h2>
@@ -1247,6 +1249,29 @@ function SystemConsole({
   );
 }
 
+function ConsoleWindow(): React.JSX.Element {
+  const [activity, setActivity] = useState<ActivityEntry[]>([]);
+  useEffect(() => {
+    const off = window.arcSatellite.onActivity((entry) =>
+      setActivity((current) => [entry, ...current].slice(0, 1000)),
+    );
+    void window.arcSatellite.getActivity().then((history) =>
+      setActivity((current) => {
+        const combined = [...current, ...history.slice(-1000).reverse()];
+        const seen = new Set<string>();
+        return combined.filter((entry) => {
+          const key = `${entry.at}-${entry.direction}-${JSON.stringify(entry.message)}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 1000);
+      }),
+    );
+    return off;
+  }, []);
+  return <SystemConsole activity={activity} close={() => window.close()} standalone />;
+}
+
 function App(): React.JSX.Element {
   const [page, setPage] = useState<Page>("Overview");
   const [status, setStatus] = useState<SatelliteStatus>({
@@ -1262,7 +1287,6 @@ function App(): React.JSX.Element {
   const [brandName, setBrandName] = useState("ARC");
   const [brandLogo, setBrandLogo] = useState<string>();
   const [logoOnly, setLogoOnly] = useState(false);
-  const [consoleOpen, setConsoleOpen] = useState(false);
   const [launchPending, setLaunchPending] = useState<{
     reason: string;
     delaySeconds: number;
@@ -1478,7 +1502,7 @@ function App(): React.JSX.Element {
             stats={stats}
             config={config}
             save={save}
-            openConsole={() => setConsoleOpen(true)}
+            openConsole={() => void window.arcSatellite.openConsole()}
           />
         );
     }
@@ -1554,12 +1578,6 @@ function App(): React.JSX.Element {
           {body}
         </div>
       </section>
-      {consoleOpen && (
-        <SystemConsole
-          activity={activity}
-          close={() => setConsoleOpen(false)}
-        />
-      )}
       {launchPending && (
         <div className="modal-backdrop">
           <div className="modal">
@@ -1586,6 +1604,10 @@ function App(): React.JSX.Element {
 }
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    {new URLSearchParams(window.location.search).get("view") === "console" ? (
+      <ConsoleWindow />
+    ) : (
+      <App />
+    )}
   </React.StrictMode>,
 );

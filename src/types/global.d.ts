@@ -10,6 +10,7 @@ declare global {
       getBranding(): Promise<import("../core/branding").Branding>;
       getSystemStats(): Promise<import("../core/system-monitor").SystemSnapshot | undefined>;
       getActivity(): Promise<import("../core/events").ActivityEntry[]>;
+      openConsole(): Promise<void>;
       launchApp(): Promise<boolean>;
       cancelLaunch(): Promise<boolean>;
       exportDiagnostics(): Promise<boolean>;
