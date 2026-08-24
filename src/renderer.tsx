@@ -139,9 +139,11 @@ const Stat = ({
 );
 const eventName = (entry: ActivityEntry): string => {
   const type = String(entry.message.type ?? entry.message.detail ?? "event");
-  return type === "command" && entry.message.action
-    ? `${type}: ${String(entry.message.action)}`
-    : type;
+  if (type === "command" && entry.message.action)
+    return `${type}: ${String(entry.message.action)}`;
+  if (type === "trigger" && entry.message.trigger_id)
+    return `${type}: ${String(entry.message.trigger_id)}`;
+  return type;
 };
 const filterActivity = (
   activity: ActivityEntry[],
@@ -671,12 +673,87 @@ function Settings({
   );
 }
 
-function Launcher({
+function MonitoredProcesses({
+  stats,
   config,
   save,
 }: {
+  stats?: SystemSnapshot;
   config: SatelliteConfig;
   save: (next: SatelliteConfig) => Promise<void>;
+}): React.JSX.Element {
+  const [name, setName] = useState("");
+  const add = (): void => {
+    const processName = name.trim();
+    if (!processName || config.monitoring.processes.includes(processName)) return;
+    void save({
+      ...config,
+      monitoring: {
+        ...config.monitoring,
+        processes: [...config.monitoring.processes, processName],
+      },
+    });
+    setName("");
+  };
+  return (
+    <section className="panel form">
+      <div className="section-title">
+        <div>
+          <h2>Monitored Processes</h2>
+          <p>
+            The ARC Client alerts the server when these processes start or
+            stop unexpectedly.
+          </p>
+        </div>
+      </div>
+      <div className="process-list">
+        {config.monitoring.processes.map((processName) => (
+          <div key={processName}>
+            <Badge good={stats?.processes[processName]}>
+              {processName} · {stats?.processes[processName] ? "Running" : "Stopped"}
+            </Badge>
+            <button
+              className="icon"
+              onClick={() =>
+                void save({
+                  ...config,
+                  monitoring: {
+                    ...config.monitoring,
+                    processes: config.monitoring.processes.filter(
+                      (item) => item !== processName,
+                    ),
+                  },
+                })
+              }
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="add-process">
+        <input
+          placeholder="Process name, e.g. Zombears"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && add()}
+        />
+        <button className="primary" onClick={add}>
+          Add
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function Launcher({
+  config,
+  save,
+  stats,
+}: {
+  config: SatelliteConfig;
+  save: (next: SatelliteConfig) => Promise<void>;
+  stats?: SystemSnapshot;
 }): React.JSX.Element {
   const [draft, setDraft] = useState(config.launcher);
   const [dragging, setDragging] = useState(false);
@@ -867,6 +944,7 @@ function Launcher({
           ▶ Launch Now
         </button>
       </div>
+      <MonitoredProcesses stats={stats} config={config} save={save} />
     </>
   );
 }
@@ -892,21 +970,8 @@ function Monitor({
   save: (next: SatelliteConfig) => Promise<void>;
   openConsole: () => void;
 }): React.JSX.Element {
-  const [name, setName] = useState("");
   const [monitoring, setMonitoring] = useState(config.monitoring);
   useEffect(() => setMonitoring(config.monitoring), [config.monitoring]);
-  const add = (): void => {
-    if (name.trim() && !config.monitoring.processes.includes(name.trim())) {
-      void save({
-        ...config,
-        monitoring: {
-          ...config.monitoring,
-          processes: [...config.monitoring.processes, name.trim()],
-        },
-      });
-      setName("");
-    }
-  };
   const batteryState = !stats?.battery_has_battery
     ? "Not present"
     : `${stats.battery_percent?.toFixed(0)}% — ${stats.battery_ac_connected ? (stats.battery_charging ? "Plugged in · charging" : "Plugged in · not charging") : "On battery"}`;
@@ -1040,54 +1105,6 @@ function Monitor({
         </div>
       </section>
       <section className="panel form">
-        <div className="section-title">
-          <div>
-            <h2>Monitored Processes</h2>
-            <p>
-              The ARC Client alerts the server when these processes start or
-              stop unexpectedly.
-            </p>
-          </div>
-        </div>
-        <div className="process-list">
-          {config.monitoring.processes.map((processName) => (
-            <div key={processName}>
-              <Badge good={stats?.processes[processName]}>
-                {processName} ·{" "}
-                {stats?.processes[processName] ? "Running" : "Stopped"}
-              </Badge>
-              <button
-                className="icon"
-                onClick={() =>
-                  void save({
-                    ...config,
-                    monitoring: {
-                      ...config.monitoring,
-                      processes: config.monitoring.processes.filter(
-                        (item) => item !== processName,
-                      ),
-                    },
-                  })
-                }
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-        </div>
-        <div className="add-process">
-          <input
-            placeholder="Process name, e.g. Zombears"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && add()}
-          />
-          <button className="primary" onClick={add}>
-            Add
-          </button>
-        </div>
-      </section>
-      <section className="panel form">
         <h2>Health Reporting</h2>
         <p>
           Set the thresholds and sampling interval used for server health
@@ -1183,6 +1200,28 @@ function App(): React.JSX.Element {
     reason: string;
     delaySeconds: number;
   }>();
+  const [launchSecondsRemaining, setLaunchSecondsRemaining] = useState(0);
+  useEffect(() => {
+    if (!launchPending) {
+      setLaunchSecondsRemaining(0);
+      return;
+    }
+    const deadline = Date.now() + launchPending.delaySeconds * 1_000;
+    const update = (): void =>
+      setLaunchSecondsRemaining(
+        Math.max(0, Math.ceil((deadline - Date.now()) / 1_000)),
+      );
+    update();
+    const interval = setInterval(update, 250);
+    const close = setTimeout(
+      () => setLaunchPending(undefined),
+      launchPending.delaySeconds * 1_000 + 250,
+    );
+    return () => {
+      clearInterval(interval);
+      clearTimeout(close);
+    };
+  }, [launchPending]);
   useEffect(() => {
     if (!window.arcSatellite) {
       if (import.meta.env.DEV) {
@@ -1349,7 +1388,7 @@ function App(): React.JSX.Element {
       case "Settings":
         return <Settings config={config} save={save} />;
       case "App Launcher":
-        return <Launcher config={config} save={save} />;
+        return <Launcher config={config} save={save} stats={stats} />;
       case "System Monitor":
         return (
           <Monitor
@@ -1428,7 +1467,9 @@ function App(): React.JSX.Element {
             />
           </div>
         </header>
-        <div className="page">{body}</div>
+        <div className={`page ${page === "Activity Log" ? "activity-page" : ""}`}>
+          {body}
+        </div>
       </section>
       {consoleOpen && (
         <SystemConsole
@@ -1442,7 +1483,8 @@ function App(): React.JSX.Element {
             <h2>Application Launch</h2>
             <p>
               The configured application will launch in{" "}
-              {launchPending.delaySeconds} seconds.
+              <strong>{launchSecondsRemaining}</strong>{" "}
+              {launchSecondsRemaining === 1 ? "second" : "seconds"}.
             </p>
             <button
               onClick={() =>

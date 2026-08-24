@@ -37,9 +37,10 @@ button {
   font: inherit;
 }
 .shell {
-  min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-columns: 16rem 1fr;
+  overflow: hidden;
 }
 .sidebar {
   background: var(--arc-sidebar);
@@ -151,8 +152,13 @@ nav button.active {
 }
 .content {
   min-width: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 header {
+  flex: 0 0 auto;
   min-height: 68px;
   padding: 0 28px;
   background: white;
@@ -212,8 +218,27 @@ header {
   border-color: #bbf7d0;
 }
 .page {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
   padding: 28px;
   max-width: 1500px;
+  overflow-y: auto;
+}
+.page.activity-page {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.activity-page > .headline,
+.activity-page > .log-toolbar {
+  flex: 0 0 auto;
+}
+.activity-page > .log-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-bottom: 0;
+  overflow-y: auto;
 }
 .headline h1 {
   margin: 0 0 7px;
