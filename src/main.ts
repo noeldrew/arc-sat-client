@@ -36,6 +36,7 @@ const createWindow = async (): Promise<void> => {
     minHeight: 640,
     show: false,
     backgroundColor: "#f5f7fb",
+    fullscreen: core?.getConfig().clientFullscreen ?? false,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,

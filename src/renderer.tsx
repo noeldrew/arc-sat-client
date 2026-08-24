@@ -652,6 +652,18 @@ function Settings({
           ))}
         </div>
       </section>
+      <section className="panel form">
+        <h2>Client Display</h2>
+        <label className="check-line">
+          <input
+            type="checkbox"
+            checked={draft.clientFullscreen}
+            onChange={(e) => update("clientFullscreen", e.target.checked)}
+          />
+          Launch ARC Client in fullscreen
+        </label>
+        <p>This takes effect the next time the ARC Client starts.</p>
+      </section>
       <div className="actions">
         <button
           className="primary"
@@ -1324,6 +1336,7 @@ function App(): React.JSX.Element {
           zone: "Zone A",
           applicationType: "game",
           serverUrl: "http://localhost:8080",
+          clientFullscreen: false,
           localWsPort: 25585,
           localHttpEnabled: true,
           localHttpPort: 25586,
