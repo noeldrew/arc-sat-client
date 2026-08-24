@@ -120,9 +120,6 @@ const createWindow = async (): Promise<void> => {
 
 const createSplashWindow = async (): Promise<BrowserWindow> => {
   const config = await new ConfigStore().load();
-  const branding = await new BrandingService(
-    path.join(app.getPath("userData"), "branding-cache.json"),
-  ).loadCached();
   const splash = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -132,7 +129,7 @@ const createSplashWindow = async (): Promise<BrowserWindow> => {
     frame: false,
     resizable: false,
     fullscreen: config.clientFullscreen,
-    backgroundColor: branding.sidebar_background_colour ?? "#101a35",
+    backgroundColor: "#f7f5f2",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -142,11 +139,6 @@ const createSplashWindow = async (): Promise<BrowserWindow> => {
   });
   const query = {
     view: "splash",
-    name: branding.platform_name,
-    logo: branding.logo_url ?? "",
-    primary: branding.primary_colour ?? "#ff5733",
-    background: branding.sidebar_background_colour ?? "#101a35",
-    text: branding.sidebar_text_colour ?? "#ffffff",
   };
   const ready = new Promise<void>((resolve) => {
     splash.once("ready-to-show", () => {

@@ -1388,24 +1388,17 @@ function ConsoleWindow(): React.JSX.Element {
 }
 
 function SplashScreen(): React.JSX.Element {
-  const params = new URLSearchParams(window.location.search);
-  const logo = params.get("logo");
-  const [logoFailed, setLogoFailed] = useState(false);
-  const platformName = params.get("name") || "ARC";
-  const style = {
-    "--splash-primary": params.get("primary") || "#ff5733",
-    "--splash-background": params.get("background") || "#101a35",
-    "--splash-text": params.get("text") || "#ffffff",
-  } as React.CSSProperties;
   return (
-    <main className="startup-splash" style={style}>
+    <main className="startup-splash">
       <div className="splash-glow" />
       <section className="splash-content">
-        {logo && !logoFailed ? (
-          <img className="splash-logo" src={logo} alt={platformName} onError={() => setLogoFailed(true)} />
-        ) : (
-          <div className="splash-monogram" aria-label={platformName}>A</div>
-        )}
+        <svg className="splash-arc-mark" viewBox="0 0 100 100" role="img" aria-label="ARC Client">
+          <path d="M15 37h18l15-15h20" />
+          <path d="m59 13 13 13-13 13" />
+          <path d="M85 63H67L52 78H32" />
+          <path d="m41 87-13-13 13-13" />
+          <path d="M68 26 32 74" />
+        </svg>
         <p className="splash-powered">Powered by ARC</p>
         <p className="splash-developer">Developed by Brave Duck &amp; Robots</p>
         <div className="splash-progress" aria-hidden="true"><span /></div>

@@ -16,11 +16,6 @@ export type Branding = z.infer<typeof BrandingSchema>;
 export class BrandingService {
   constructor(private readonly cachePath: string) {}
 
-  async loadCached(): Promise<Branding> {
-    try { return BrandingSchema.parse(JSON.parse(await readFile(this.cachePath, "utf8"))); }
-    catch { return BrandingSchema.parse({}); }
-  }
-
   async load(serverUrl: string): Promise<Branding> {
     try {
       const response = await fetch(`${serverUrl.replace(/\/$/, "")}/api/v1/branding/public`, { signal: AbortSignal.timeout(8_000) });
@@ -28,7 +23,10 @@ export class BrandingService {
       const branding = BrandingSchema.parse(await response.json());
       await this.cache(branding);
       return branding;
-    } catch { return this.loadCached(); }
+    } catch {
+      try { return BrandingSchema.parse(JSON.parse(await readFile(this.cachePath, "utf8"))); }
+      catch { return BrandingSchema.parse({}); }
+    }
   }
 
   private async cache(branding: Branding): Promise<void> {

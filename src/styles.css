@@ -40,8 +40,8 @@ body {
   overflow: hidden;
   display: grid;
   place-items: center;
-  background: var(--splash-background);
-  color: var(--splash-text);
+  background: #f7f5f2;
+  color: #111111;
   user-select: none;
   -webkit-app-region: drag;
 }
@@ -50,7 +50,7 @@ body {
   width: min(70vw, 850px);
   aspect-ratio: 1;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--splash-primary) 22%, transparent);
+  background: rgba(255, 87, 51, 0.12);
   filter: blur(100px);
   opacity: 0.7;
 }
@@ -63,23 +63,15 @@ body {
   width: min(520px, calc(100vw - 80px));
   text-align: center;
 }
-.splash-logo {
-  display: block;
-  max-width: min(340px, 62vw);
-  max-height: 210px;
-  object-fit: contain;
+.splash-arc-mark {
+  width: 132px;
+  height: 132px;
   margin-bottom: 44px;
-}
-.splash-monogram {
-  width: 112px;
-  height: 112px;
-  display: grid;
-  place-items: center;
-  margin-bottom: 44px;
-  border: 3px solid currentColor;
-  font-size: 64px;
-  font-weight: 850;
-  line-height: 1;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .splash-powered {
   margin: 0;
@@ -99,13 +91,13 @@ body {
   width: 180px;
   height: 3px;
   overflow: hidden;
-  background: color-mix(in srgb, var(--splash-text) 18%, transparent);
+  background: rgba(17, 17, 17, 0.13);
 }
 .splash-progress span {
   display: block;
   width: 42%;
   height: 100%;
-  background: var(--splash-primary);
+  background: #ff5733;
   animation: splash-loading 1.15s ease-in-out infinite;
 }
 @keyframes splash-loading {
