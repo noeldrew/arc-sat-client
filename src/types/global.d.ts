@@ -11,6 +11,8 @@ declare global {
       getSystemStats(): Promise<import("../core/system-monitor").SystemSnapshot | undefined>;
       getActivity(): Promise<import("../core/events").ActivityEntry[]>;
       openConsole(): Promise<void>;
+      getPortConflict(): Promise<{ port: number; pid: number; command: string; user: string } | undefined>;
+      recoverPort(pid: number): Promise<boolean>;
       launchApp(): Promise<boolean>;
       cancelLaunch(): Promise<boolean>;
       exportDiagnostics(): Promise<boolean>;

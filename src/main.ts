@@ -2,6 +2,8 @@ import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import started from "electron-squirrel-startup";
 import path from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { ConfigStore, SatelliteConfigSchema } from "./core/config";
 import type { ActivityEntry, SatelliteStatus } from "./core/events";
 import { SatelliteCore } from "./core/satellite-core";
@@ -24,6 +26,47 @@ let latestStatus: SatelliteStatus = {
   triggersRegistered: false,
 };
 const recentActivity: ActivityEntry[] = [];
+const execFileAsync = promisify(execFile);
+
+interface PortHolder {
+  port: number;
+  pid: number;
+  command: string;
+  user: string;
+}
+
+const findPortHolder = async (port: number): Promise<PortHolder | undefined> => {
+  if (process.platform === "win32") {
+    const { stdout } = await execFileAsync("netstat", ["-ano", "-p", "tcp"]);
+    const line = stdout.split(/\r?\n/).find((candidate) => {
+      const columns = candidate.trim().split(/\s+/);
+      return columns[0] === "TCP" && columns[1]?.endsWith(`:${port}`) && columns[3] === "LISTENING";
+    });
+    if (!line) return undefined;
+    const pid = Number(line.trim().split(/\s+/)[4]);
+    const { stdout: tasks } = await execFileAsync("tasklist", ["/FI", `PID eq ${pid}`, "/FO", "CSV", "/NH"]);
+    return { port, pid, command: tasks.match(/^"([^"]+)/)?.[1] ?? "Unknown process", user: "" };
+  }
+  try {
+    const { stdout } = await execFileAsync("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN"]);
+    const columns = stdout.trim().split(/\r?\n/)[1]?.trim().split(/\s+/);
+    if (!columns || columns.length < 3) return undefined;
+    return { port, command: columns[0]!, pid: Number(columns[1]), user: columns[2]! };
+  } catch (error) {
+    if ((error as { code?: number }).code === 1) return undefined;
+    throw error;
+  }
+};
+
+const waitForExit = async (pid: number, timeoutMs: number): Promise<boolean> => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try { process.kill(pid, 0); }
+    catch { return true; }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  return false;
+};
 
 const sendToRenderers = (channel: string, payload: unknown): void => {
   for (const window of BrowserWindow.getAllWindows())
@@ -142,6 +185,31 @@ const startCore = async (): Promise<void> => {
     structuredClone(recentActivity),
   );
   ipcMain.handle("satellite:open-console", () => openConsoleWindow());
+  ipcMain.handle("satellite:get-port-conflict", async () => {
+    const status = core?.getStatus();
+    if (!core || status?.localTransport !== "error") return undefined;
+    return findPortHolder(core.getConfig().localWsPort);
+  });
+  ipcMain.handle("satellite:recover-port", async (_event, expectedPid: number) => {
+    if (!core || core.getStatus().localTransport !== "error")
+      throw new Error("The local WebSocket is no longer in an error state.");
+    const port = core.getConfig().localWsPort;
+    const holder = await findPortHolder(port);
+    if (!holder || holder.pid !== expectedPid)
+      throw new Error("The process using the port has changed. Nothing was terminated.");
+    if (!Number.isSafeInteger(holder.pid) || holder.pid <= 1 || holder.pid === process.pid)
+      throw new Error("The identified process cannot be terminated safely.");
+    core.events.log("system", { type: "port-recovery-confirmed", port, pid: holder.pid, command: holder.command });
+    process.kill(holder.pid, "SIGTERM");
+    if (!(await waitForExit(holder.pid, 2_000))) {
+      process.kill(holder.pid, "SIGKILL");
+      if (!(await waitForExit(holder.pid, 2_000)))
+        throw new Error(`Process ${holder.pid} did not release port ${port}.`);
+    }
+    await core.restartLocalWebSocket();
+    core.events.log("system", { type: "port-recovery-complete", port });
+    return true;
+  });
   ipcMain.handle("satellite:export-diagnostics", async () => {
     const result = await dialog.showSaveDialog({
       title: "Export ARC Client Diagnostics",

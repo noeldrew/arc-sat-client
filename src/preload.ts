@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld("arcSatellite", {
   getSystemStats: () => ipcRenderer.invoke("satellite:get-system-stats"),
   getActivity: () => ipcRenderer.invoke("satellite:get-activity"),
   openConsole: () => ipcRenderer.invoke("satellite:open-console"),
+  getPortConflict: () => ipcRenderer.invoke("satellite:get-port-conflict"),
+  recoverPort: (pid: number) => ipcRenderer.invoke("satellite:recover-port", pid),
   launchApp: () => ipcRenderer.invoke("satellite:launch-app"),
   cancelLaunch: () => ipcRenderer.invoke("satellite:cancel-launch"),
   exportDiagnostics: () => ipcRenderer.invoke("satellite:export-diagnostics"),

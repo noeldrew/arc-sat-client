@@ -1306,6 +1306,15 @@ function App(): React.JSX.Element {
     delaySeconds: number;
   }>();
   const [launchSecondsRemaining, setLaunchSecondsRemaining] = useState(0);
+  const [portConflict, setPortConflict] = useState<{
+    port: number;
+    pid: number;
+    command: string;
+    user: string;
+  }>();
+  const [dismissedConflict, setDismissedConflict] = useState<string>();
+  const [recoveringPort, setRecoveringPort] = useState(false);
+  const [portRecoveryError, setPortRecoveryError] = useState<string>();
   useEffect(() => {
     if (!launchPending) {
       setLaunchSecondsRemaining(0);
@@ -1327,6 +1336,18 @@ function App(): React.JSX.Element {
       clearTimeout(close);
     };
   }, [launchPending]);
+  useEffect(() => {
+    if (!window.arcSatellite || status.localTransport !== "error") {
+      setPortConflict(undefined);
+      setPortRecoveryError(undefined);
+      return;
+    }
+    void window.arcSatellite.getPortConflict().then((holder) => {
+      if (!holder) return;
+      const key = `${holder.port}:${holder.pid}`;
+      if (key !== dismissedConflict) setPortConflict(holder);
+    }).catch(() => undefined);
+  }, [status.localTransport, status.transportError, dismissedConflict]);
   useEffect(() => {
     if (!window.arcSatellite) {
       if (import.meta.env.DEV) {
@@ -1645,6 +1666,53 @@ function App(): React.JSX.Element {
               Cancel Launch
             </button>
           </div>
+        </div>
+      )}
+      {portConflict && (
+        <div className="modal-backdrop">
+          <section className="modal port-recovery-modal" role="alertdialog" aria-modal="true">
+            <div className="warning-mark">!</div>
+            <h2>Local WebSocket Port Is In Use</h2>
+            <p>
+              ARC Client cannot listen on reserved port <strong>{portConflict.port}</strong>{" "}
+              because another process is holding it.
+            </p>
+            <div className="process-detail">
+              <span>Process</span><strong>{portConflict.command}</strong>
+              <span>PID</span><code>{portConflict.pid}</code>
+              {portConflict.user && <><span>User</span><strong>{portConflict.user}</strong></>}
+            </div>
+            <p className="warning-copy">
+              Confirming will terminate this process and restart the ARC Client WebSocket listener.
+              Unsaved work in that process may be lost.
+            </p>
+            {portRecoveryError && <p className="recovery-error">{portRecoveryError}</p>}
+            <div className="actions">
+              <button
+                disabled={recoveringPort}
+                onClick={() => {
+                  setDismissedConflict(`${portConflict.port}:${portConflict.pid}`);
+                  setPortConflict(undefined);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="danger"
+                disabled={recoveringPort}
+                onClick={() => {
+                  setRecoveringPort(true);
+                  setPortRecoveryError(undefined);
+                  void window.arcSatellite.recoverPort(portConflict.pid)
+                    .then(() => setPortConflict(undefined))
+                    .catch((error) => setPortRecoveryError(error instanceof Error ? error.message : String(error)))
+                    .finally(() => setRecoveringPort(false));
+                }}
+              >
+                {recoveringPort ? "Recovering…" : "Kill Process & Restart Port"}
+              </button>
+            </div>
+          </section>
         </div>
       )}
     </main>

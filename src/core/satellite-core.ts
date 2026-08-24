@@ -62,6 +62,10 @@ export class SatelliteCore {
   getStatus(): SatelliteStatus { return { ...this.status }; }
   getConfig(): SatelliteConfig { return structuredClone(this.config); }
 
+  async restartLocalWebSocket(): Promise<void> {
+    await this.local.start(this.config.localWsPort);
+  }
+
   async updateConfig(config: SatelliteConfig): Promise<void> {
     const oldPort = this.config.localWsPort;
     const auxChanged = this.config.localHttpEnabled !== config.localHttpEnabled || this.config.localHttpPort !== config.localHttpPort || this.config.localTcpEnabled !== config.localTcpEnabled || this.config.localTcpPort !== config.localTcpPort || this.config.localUdpEnabled !== config.localUdpEnabled || this.config.localUdpPort !== config.localUdpPort;
@@ -86,7 +90,10 @@ export class SatelliteCore {
       if (this.status.localAppRegistered) this.sendTriggerDefinitions();
     });
     this.cloud.on("message", (message: CloudInboundMessage) => this.handleCloud(message));
-    this.local.on("state", (localTransport) => this.updateStatus({ localTransport }));
+    this.local.on("state", (localTransport) => this.updateStatus({
+      localTransport,
+      ...(localTransport === "connected" ? { transportError: undefined } : {}),
+    }));
     this.local.on("transport-error", (transportError) => this.updateStatus({ transportError }));
     this.local.on("app-state", (localAppConnected) => this.updateStatus({
       localAppConnected,
