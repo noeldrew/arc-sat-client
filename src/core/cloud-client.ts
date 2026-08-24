@@ -93,7 +93,7 @@ export class CloudClient extends EventEmitter {
       this.events.log("system", { type: "cloud-transport-open", endpoint });
       const sent = this.send({
         type: "connect", client_id: this.config.clientId, name: this.config.name,
-        version: "0.1.0", triggers: this.config.triggers,
+        version: "1.6.0", triggers: this.config.triggers,
         ...(this.config.apiToken ? { api_token: this.config.apiToken } : {}),
         ...(this.config.installationId ? { installation_id: this.config.installationId } : {}),
         ...(this.config.siteId ? { site_id: this.config.siteId } : {}),
