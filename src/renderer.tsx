@@ -1308,6 +1308,11 @@ function SystemConsole({
   };
   return (
     <div className={standalone ? "console-window" : "modal-backdrop"}>
+      {standalone && (
+        <div className="console-custom-titlebar" aria-hidden="true">
+          ARC Client System Console
+        </div>
+      )}
       <section className={`console-modal ${standalone ? "standalone" : ""}`}>
         <div className="console-title">
           <div>
@@ -1383,6 +1388,15 @@ function ConsoleWindow(): React.JSX.Element {
       }),
     );
     return off;
+  }, []);
+  useEffect(() => {
+    void window.arcSatellite.getBranding().then((branding) => {
+      const sidebar = branding.sidebar_background_colour ?? "#101a35";
+      const sidebarText = branding.sidebar_text_colour ?? "#ffffff";
+      document.documentElement.style.setProperty("--arc-sidebar", sidebar);
+      document.documentElement.style.setProperty("--arc-sidebar-text", sidebarText);
+      void window.arcSatellite.setTitlebarColors(sidebar, sidebarText);
+    });
   }, []);
   return <SystemConsole activity={activity} close={() => window.close()} standalone />;
 }
@@ -1636,8 +1650,8 @@ function App(): React.JSX.Element {
         if (value) root.setProperty(key, value);
       });
       void window.arcSatellite.setTitlebarColors(
-        branding.sidebar_background_colour ?? "#101a35",
-        branding.sidebar_text_colour ?? "#ffffff",
+        "#ffffff",
+        branding.text_colour ?? "#14213d",
       );
     });
     return () => off.forEach((dispose) => dispose());

@@ -176,6 +176,16 @@ const openConsoleWindow = async (): Promise<void> => {
     show: false,
     title: "ARC Client System Console",
     backgroundColor: "#0a1426",
+    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",
+    ...(process.platform === "darwin"
+      ? { trafficLightPosition: { x: 14, y: 11 } }
+      : {
+          titleBarOverlay: {
+            color: "#101a35",
+            symbolColor: "#ffffff",
+            height: 38,
+          },
+        }),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -251,9 +261,10 @@ const startCore = async (): Promise<void> => {
     structuredClone(recentActivity),
   );
   ipcMain.handle("satellite:open-console", () => openConsoleWindow());
-  ipcMain.handle("satellite:set-titlebar-colors", (_event, background: string, foreground: string) => {
-    if (process.platform !== "darwin" && mainWindow && !mainWindow.isDestroyed())
-      mainWindow.setTitleBarOverlay({ color: background, symbolColor: foreground, height: 38 });
+  ipcMain.handle("satellite:set-titlebar-colors", (event, background: string, foreground: string) => {
+    const senderWindow = BrowserWindow.fromWebContents(event.sender);
+    if (process.platform !== "darwin" && senderWindow && !senderWindow.isDestroyed())
+      senderWindow.setTitleBarOverlay({ color: background, symbolColor: foreground, height: 38 });
   });
   ipcMain.handle("satellite:get-port-conflict", async () => {
     const status = core?.getStatus();
