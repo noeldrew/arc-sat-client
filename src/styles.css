@@ -595,6 +595,25 @@ textarea {
   width: auto;
   min-height: auto;
 }
+.check-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  color: var(--arc-text);
+}
+.check-line input[type="checkbox"] {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+}
+.check-line + p {
+  margin: 7px 0 0 24px;
+  font-size: 12px;
+}
 .actions {
   justify-content: flex-start;
 }
