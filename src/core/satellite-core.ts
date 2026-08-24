@@ -11,10 +11,12 @@ import { UgcService, type UgcRequest } from "./ugc-service";
 import type { CloudInboundMessage } from "./protocol/cloud";
 import type { TriggerDefinition } from "./protocol/common";
 import type { LocalInboundMessage } from "./protocol/local";
+import { NetworkDiagnostics, type NetworkTestResult } from "./network-diagnostics";
 
 export interface SatelliteCoreOptions {
   config: SatelliteConfig;
   saveConfig: (config: SatelliteConfig) => Promise<void>;
+  networkHistoryPath?: string;
 }
 
 export class SatelliteCore {
@@ -25,11 +27,15 @@ export class SatelliteCore {
   readonly launcher: AppLauncher;
   readonly aux: AuxTransports;
   readonly ugc: UgcService;
+  readonly network: NetworkDiagnostics;
   private alternativeLocalSessionId?: string;
   private config: SatelliteConfig;
   private cloudSessionId?: string;
   private customer?: Record<string, unknown>;
   private lastHealthAlert?: boolean;
+  private lastNetworkResult?: NetworkTestResult;
+  private startupNetworkReady = false;
+  private deferredLaunchReason?: "cloud-connect" | "session";
   private status: SatelliteStatus = { cloud: "stopped", localTransport: "stopped", localAppConnected: false, localAppRegistered: false, triggersRegistered: false };
 
   constructor(private readonly options: SatelliteCoreOptions) {
@@ -40,6 +46,7 @@ export class SatelliteCore {
     this.launcher = new AppLauncher(() => this.config, this.events, () => this.local.isAppConnected() || this.monitor.isAnyMonitoredProcessRunning());
     this.aux = new AuxTransports((message, source) => this.handleAlternative(message, source), this.events);
     this.ugc = new UgcService(() => this.config);
+    this.network = new NetworkDiagnostics(() => this.config, this.events, options.networkHistoryPath);
     this.wire();
   }
 
@@ -48,8 +55,14 @@ export class SatelliteCore {
     catch (error) { this.events.log("error", { source: "local-websocket", detail: error instanceof Error ? error.message : String(error) }); }
     await this.aux.start({ httpEnabled: this.config.localHttpEnabled, httpPort: this.config.localHttpPort, tcpEnabled: this.config.localTcpEnabled, tcpPort: this.config.localTcpPort, udpEnabled: this.config.localUdpEnabled, udpPort: this.config.localUdpPort });
     this.monitor.start();
-    if (this.config.launcher.onClientStart) this.launcher.schedule("client-start");
     this.cloud.start();
+    await this.network.load();
+    void this.network.run("startup").finally(() => {
+      this.startupNetworkReady = true;
+      if (this.config.launcher.onClientStart) this.launcher.schedule("client-start");
+      else if (this.deferredLaunchReason) this.launcher.schedule(this.deferredLaunchReason);
+      this.deferredLaunchReason = undefined;
+    });
   }
 
   async stop(): Promise<void> {
@@ -61,6 +74,11 @@ export class SatelliteCore {
 
   getStatus(): SatelliteStatus { return { ...this.status }; }
   getConfig(): SatelliteConfig { return structuredClone(this.config); }
+
+  runManualNetworkTest(): Promise<NetworkTestResult> {
+    if (this.cloudSessionId) throw new Error("A network test cannot run during an active player session.");
+    return this.network.run("manual");
+  }
 
   async restartLocalWebSocket(): Promise<void> {
     await this.local.start(this.config.localWsPort);
@@ -86,7 +104,8 @@ export class SatelliteCore {
       if (ack.api_token) { this.config.apiToken = ack.api_token; changed = true; }
       if (ack.canonical_client_id) { this.config.clientId = ack.canonical_client_id; changed = true; }
       if (changed) void this.options.saveConfig(this.config);
-      if (this.config.launcher.onConnect && !this.local.isAppConnected()) this.launcher.schedule("cloud-connect");
+      if (this.lastNetworkResult) this.reportNetworkResult(this.lastNetworkResult);
+      if (this.config.launcher.onConnect && !this.local.isAppConnected()) this.scheduleAutomaticLaunch("cloud-connect");
       if (this.status.localAppRegistered) this.sendTriggerDefinitions();
     });
     this.cloud.on("message", (message: CloudInboundMessage) => this.handleCloud(message));
@@ -121,6 +140,10 @@ export class SatelliteCore {
       this.lastHealthAlert = alert;
       this.cloud.send({ type: "health_status", client_id: this.config.clientId, alert, reasons });
     });
+    this.network.on("result", (result: NetworkTestResult) => {
+      this.lastNetworkResult = result;
+      this.reportNetworkResult(result);
+    });
     this.monitor.on("process-change", ({ name, running, at }: { name: string; running: boolean; at: string }) => {
       this.cloud.send({ type: "system_alert", client_id: this.config.clientId, process: name, status: running ? "running" : "stopped", timestamp: at });
       if (!running) this.launcher.relaunchAfterProcessStop();
@@ -128,6 +151,23 @@ export class SatelliteCore {
     this.events.on("snapshot-requested", () => {
       const stats = this.monitor.getSnapshot();
       if (stats) this.cloud.send({ type: "snapshot-response", client_id: this.config.clientId, stats: stats as unknown as Record<string, never> });
+    });
+  }
+
+  private reportNetworkResult(result: NetworkTestResult): void {
+    if (result.status === "cancelled") return;
+    this.cloud.send({
+      type: "network_status",
+      client_id: this.config.clientId,
+      status: result.status,
+      timestamp: result.testedAt,
+      reasons: result.reasons,
+      ...(result.latencyMs !== undefined ? { latency_ms: result.latencyMs } : {}),
+      ...(result.jitterMs !== undefined ? { jitter_ms: result.jitterMs } : {}),
+      ...(result.downloadMbps !== undefined ? { download_mbps: result.downloadMbps } : {}),
+      ...(result.uploadMbps !== undefined ? { upload_mbps: result.uploadMbps } : {}),
+      ...(result.adapterName ? { adapter: result.adapterName } : {}),
+      ...(result.linkSpeedMbps !== undefined ? { link_speed_mbps: result.linkSpeedMbps } : {}),
     });
   }
 
@@ -165,7 +205,7 @@ export class SatelliteCore {
       this.customer = customer;
       this.updateStatus({ cloudSessionId: sessionId });
       this.local.send({ ...message, type: "session-start", session_id: sessionId });
-      if (this.config.launcher.onSession && !this.local.isAppConnected()) this.launcher.schedule("session");
+      if (this.config.launcher.onSession && !this.local.isAppConnected()) this.scheduleAutomaticLaunch("session");
     } else {
       this.local.send(message);
     }
@@ -250,6 +290,11 @@ export class SatelliteCore {
     this.updateStatus({ cloudSessionId: undefined });
   }
 
+  private scheduleAutomaticLaunch(reason: "cloud-connect" | "session"): void {
+    if (this.startupNetworkReady) this.launcher.schedule(reason);
+    else this.deferredLaunchReason = reason;
+  }
+
   private updateStatus(patch: Partial<SatelliteStatus>): void {
     this.status = { ...this.status, ...patch };
     this.events.emit("status", this.getStatus());
@@ -261,6 +306,6 @@ export const createTestConfig = (patch: Partial<SatelliteConfig> = {}): Satellit
   serverUrl: "http://localhost:8080", clientFullscreen: false, localWsPort: 25585, localHttpEnabled: true, localHttpPort: 25586,
   localTcpEnabled: true, localTcpPort: 25587, localUdpEnabled: true, localUdpPort: 25588, triggers: [],
   launcher: { type: "none", path: "", script: "", onConnect: false, onClientStart: false, clientStartDelaySeconds: 5, onSession: false, delaySeconds: 5, queueSession: true, autoRelaunch: false, relaunchCooldownSeconds: 60 },
-  monitoring: { processes: [], cpuThreshold: 85, ramThreshold: 90, diskThreshold: 90, intervalSeconds: 15 },
+  monitoring: { processes: [], cpuThreshold: 85, ramThreshold: 90, diskThreshold: 90, intervalSeconds: 15, networkLatencyThresholdMs: 100, networkDownloadMinimumMbps: 10, networkUploadMinimumMbps: 5 },
   ...patch,
 });

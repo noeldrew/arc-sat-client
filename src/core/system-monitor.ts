@@ -16,6 +16,10 @@ export interface SystemSnapshot {
   disk_total_gb?: number;
   network_rx_bytes_sec?: number;
   network_tx_bytes_sec?: number;
+  network_adapter_name?: string;
+  network_adapter_type?: string;
+  network_ip4?: string;
+  network_link_speed_mbps?: number;
   cpu_temperature_c?: number;
   fan_rpm?: number[];
   battery_has_battery?: boolean;
@@ -59,9 +63,9 @@ export class SystemMonitor extends EventEmitter {
 
   async sample(): Promise<SystemSnapshot> {
     const config = this.getConfig();
-    const [load, memory, filesystem, time, os, processes, cpu, networkResult, batteryResult, temperatureResult, graphicsResult] = await Promise.all([
+    const [load, memory, filesystem, time, os, processes, cpu, networkResult, adapter, batteryResult, temperatureResult, graphicsResult] = await Promise.all([
       si.currentLoad(), si.mem(), si.fsSize(), si.time(), si.osInfo(), si.processes(), si.cpuCurrentSpeed(),
-      si.networkStats().catch(() => []), si.battery().catch(() => undefined), si.cpuTemperature().catch(() => undefined), si.graphics().catch(() => undefined),
+      si.networkStats().catch(() => []), si.networkInterfaces("default").catch(() => undefined), si.battery().catch(() => undefined), si.cpuTemperature().catch(() => undefined), si.graphics().catch(() => undefined),
     ]);
     const monitored = new Map(config.monitoring.processes.map((name) => [name, false]));
     for (const process of processes.list) {
@@ -86,6 +90,10 @@ export class SystemMonitor extends EventEmitter {
       disk_total_gb: root ? root.size / 1024 / 1024 / 1024 : undefined,
       network_rx_bytes_sec: rx,
       network_tx_bytes_sec: tx,
+      network_adapter_name: adapter?.ifaceName || adapter?.iface,
+      network_adapter_type: adapter?.type,
+      network_ip4: adapter?.ip4,
+      network_link_speed_mbps: adapter?.speed ?? undefined,
       cpu_temperature_c: temperatureResult?.main && temperatureResult.main > 0 ? temperatureResult.main : undefined,
       battery_has_battery: batteryResult?.hasBattery,
       battery_percent: batteryResult?.hasBattery ? batteryResult.percent : undefined,

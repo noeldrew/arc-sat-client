@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import type { SatelliteConfig } from "./core/config";
 import type { ActivityEntry, SatelliteStatus } from "./core/events";
 import type { SystemSnapshot } from "./core/system-monitor";
+import type { NetworkTestState } from "./core/network-diagnostics";
 import "./styles.css";
 
 const pages = [
@@ -976,14 +977,22 @@ function Monitor({
   config,
   save,
   openConsole,
+  networkTest,
 }: {
   stats?: SystemSnapshot;
   config: SatelliteConfig;
   save: (next: SatelliteConfig) => Promise<void>;
   openConsole: () => void;
+  networkTest: NetworkTestState;
 }): React.JSX.Element {
   const [monitoring, setMonitoring] = useState(config.monitoring);
+  const [networkTestError, setNetworkTestError] = useState("");
   useEffect(() => setMonitoring(config.monitoring), [config.monitoring]);
+  const runNetworkTest = async (): Promise<void> => {
+    setNetworkTestError("");
+    try { await window.arcSatellite.runNetworkTest(); }
+    catch (error) { setNetworkTestError(error instanceof Error ? error.message : String(error)); }
+  };
   const batteryState = !stats?.battery_has_battery
     ? "Not present"
     : `${stats.battery_percent?.toFixed(0)}% — ${stats.battery_ac_connected ? (stats.battery_charging ? "Plugged in · charging" : "Plugged in · not charging") : "On battery"}`;
@@ -1057,6 +1066,26 @@ function Monitor({
           detail="Live health interval"
         />
       </div>
+      <section className="panel form network-diagnostics">
+        <div className="section-title">
+          <div><h2>Network Diagnostics</h2><p>Adapter link and measured performance to this ARC server. Tests use real bandwidth.</p></div>
+          <div className="actions">
+            {networkTest.running ? <button onClick={() => void window.arcSatellite.cancelNetworkTest()}>Cancel Test</button> : <button className="primary" onClick={() => void runNetworkTest()}>Run Speed Test</button>}
+          </div>
+        </div>
+        <div className="network-results">
+          <Stat label="ADAPTER" value={stats?.network_adapter_name ?? "—"} detail={`${stats?.network_adapter_type ?? "Unknown"}${stats?.network_ip4 ? ` · ${stats.network_ip4}` : ""}`} />
+          <Stat label="LINK SPEED" value={stats?.network_link_speed_mbps ? `${stats.network_link_speed_mbps} Mbps` : "—"} detail="Negotiated adapter speed" />
+          <Stat label="ARC LATENCY" value={networkTest.result?.latencyMs !== undefined ? `${networkTest.result.latencyMs.toFixed(0)} ms` : networkTest.running ? "Testing…" : "—"} detail={networkTest.result?.jitterMs !== undefined ? `Jitter ${networkTest.result.jitterMs.toFixed(0)} ms` : networkTest.stage} />
+          <Stat label="ARC DOWNLOAD" value={networkTest.result?.downloadMbps !== undefined ? `${networkTest.result.downloadMbps.toFixed(1)} Mbps` : "—"} detail="Measured throughput" />
+          <Stat label="ARC UPLOAD" value={networkTest.result?.uploadMbps !== undefined ? `${networkTest.result.uploadMbps.toFixed(1)} Mbps` : "—"} detail="Measured throughput" />
+          <Stat label="RESULT" value={networkTest.running ? networkTest.stage : networkTest.result?.status ?? "Not tested"} detail={networkTest.result?.testedAt ? new Date(networkTest.result.testedAt).toLocaleString() : "Runs automatically at startup"} />
+        </div>
+        {networkTest.result?.error && <div className="recovery-error">{networkTest.result.error}</div>}
+        {networkTestError && <div className="recovery-error">{networkTestError}</div>}
+        {!!networkTest.result?.reasons.length && <div className="notice">Below configured targets: {networkTest.result.reasons.join(" · ")}</div>}
+        {!!networkTest.history.length && <div className="network-history"><h3>Recent tests</h3>{networkTest.history.slice(0, 5).map((item) => <div key={item.testedAt}><time>{new Date(item.testedAt).toLocaleString()}</time><strong className={item.status}>{item.status}</strong><span>{item.latencyMs?.toFixed(0) ?? "—"} ms</span><span>↓ {item.downloadMbps?.toFixed(1) ?? "—"}</span><span>↑ {item.uploadMbps?.toFixed(1) ?? "—"} Mbps</span></div>)}</div>}
+      </section>
       <section className="panel form">
         <h2>CPU Cores</h2>
         <div className="core-grid">
@@ -1129,6 +1158,9 @@ function Monitor({
               ["RAM alert threshold (%)", "ramThreshold"],
               ["Disk alert threshold (%)", "diskThreshold"],
               ["Sample interval (seconds)", "intervalSeconds"],
+              ["ARC latency warning (ms)", "networkLatencyThresholdMs"],
+              ["Minimum ARC download (Mbps)", "networkDownloadMinimumMbps"],
+              ["Minimum ARC upload (Mbps)", "networkUploadMinimumMbps"],
             ] as const
           ).map(([label, key]) => (
             <Field label={label} key={key}>
@@ -1295,6 +1327,7 @@ function App(): React.JSX.Element {
   });
   const [config, setConfig] = useState<SatelliteConfig>();
   const [stats, setStats] = useState<SystemSnapshot>();
+  const [networkTest, setNetworkTest] = useState<NetworkTestState>({ running: false, stage: "idle", history: [] });
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [activityPreferences, setActivityPreferences] =
     useState<ActivityPreferences>({ showAcks: false, showPing: false });
@@ -1387,6 +1420,9 @@ function App(): React.JSX.Element {
             ramThreshold: 90,
             diskThreshold: 90,
             intervalSeconds: 15,
+            networkLatencyThresholdMs: 100,
+            networkDownloadMinimumMbps: 10,
+            networkUploadMinimumMbps: 5,
           },
         });
         setStatus({
@@ -1433,6 +1469,7 @@ function App(): React.JSX.Element {
       }),
       window.arcSatellite.onConfig(setConfig),
       window.arcSatellite.onSystemStats(setStats),
+      window.arcSatellite.onNetworkTest(setNetworkTest),
       window.arcSatellite.onActivity((entry) =>
         setActivity((current) => [entry, ...current].slice(0, 1000)),
       ),
@@ -1445,7 +1482,8 @@ function App(): React.JSX.Element {
       window.arcSatellite.getSystemStats(),
       window.arcSatellite.getBranding(),
       window.arcSatellite.getActivity(),
-    ]).then(([s, c, system, branding, history]) => {
+      window.arcSatellite.getNetworkTest(),
+    ]).then(([s, c, system, branding, history, initialNetworkTest]) => {
       if (!liveStatusSeen) setStatus(s);
       setConfig(c);
       setStats(system);
@@ -1462,6 +1500,7 @@ function App(): React.JSX.Element {
           .sort((a, b) => b.at.localeCompare(a.at))
           .slice(0, 1000);
       });
+      setNetworkTest(initialNetworkTest);
       setBrandName(branding.platform_name);
       setBrandLogo(branding.logo_url ?? undefined);
       setLogoOnly(branding.logo_only);
@@ -1541,10 +1580,11 @@ function App(): React.JSX.Element {
             config={config}
             save={save}
             openConsole={() => void window.arcSatellite.openConsole()}
+            networkTest={networkTest}
           />
         );
     }
-  }, [page, config, status, stats, activity, activityPreferences]);
+  }, [page, config, status, stats, activity, activityPreferences, networkTest]);
   const serverLevel: "red" | "amber" | "green" =
     status.cloud === "connected"
       ? "green"

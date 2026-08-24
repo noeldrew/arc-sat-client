@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld("arcSatellite", {
   getConfig: () => ipcRenderer.invoke("satellite:get-config"),
   getBranding: () => ipcRenderer.invoke("satellite:get-branding"),
   getSystemStats: () => ipcRenderer.invoke("satellite:get-system-stats"),
+  getNetworkTest: () => ipcRenderer.invoke("satellite:get-network-test"),
+  runNetworkTest: () => ipcRenderer.invoke("satellite:run-network-test"),
+  cancelNetworkTest: () => ipcRenderer.invoke("satellite:cancel-network-test"),
   getActivity: () => ipcRenderer.invoke("satellite:get-activity"),
   openConsole: () => ipcRenderer.invoke("satellite:open-console"),
   getPortConflict: () => ipcRenderer.invoke("satellite:get-port-conflict"),
@@ -31,6 +34,7 @@ contextBridge.exposeInMainWorld("arcSatellite", {
   onActivity: (listener: (value: unknown) => void) => subscribe("satellite:activity", listener),
   onConfig: (listener: (value: unknown) => void) => subscribe("satellite:config", listener),
   onSystemStats: (listener: (value: unknown) => void) => subscribe("satellite:system-stats", listener),
+  onNetworkTest: (listener: (value: unknown) => void) => subscribe("satellite:network-test", listener),
   onLaunchScheduled: (listener: (value: unknown) => void) => subscribe("satellite:launch-scheduled", listener),
   onLaunchCancelled: (listener: (value: unknown) => void) => subscribe("satellite:launch-cancelled", listener),
 });

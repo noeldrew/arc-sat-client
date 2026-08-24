@@ -44,6 +44,9 @@ export const SatelliteConfigSchema = z.object({
     ramThreshold: z.number().min(0).max(100).default(90),
     diskThreshold: z.number().min(0).max(100).default(90),
     intervalSeconds: z.number().int().min(3).max(300).default(15),
+    networkLatencyThresholdMs: z.number().min(1).max(5000).default(100),
+    networkDownloadMinimumMbps: z.number().min(0).max(100000).default(10),
+    networkUploadMinimumMbps: z.number().min(0).max(100000).default(5),
   }).default({}),
 }).strict();
 
@@ -61,6 +64,7 @@ export const migrateLegacyConfig = (raw: Record<string, unknown>): SatelliteConf
   const monitoring = {
     processes: raw.monitored_processes ?? [], cpuThreshold: raw.health_cpu_threshold ?? 85,
     ramThreshold: raw.health_ram_threshold ?? 90, diskThreshold: raw.health_disk_threshold ?? 90, intervalSeconds: 15,
+    networkLatencyThresholdMs: 100, networkDownloadMinimumMbps: 10, networkUploadMinimumMbps: 5,
   };
   return SatelliteConfigSchema.parse({
     schemaVersion: 1, clientId: raw.client_id, name: raw.name, description: raw.description,

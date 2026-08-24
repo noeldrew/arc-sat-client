@@ -141,7 +141,7 @@ const startCore = async (): Promise<void> => {
     path.join(app.getPath("userData"), "diagnostics"),
   );
   const config = await store.load();
-  core = new SatelliteCore({ config, saveConfig: (next) => store.save(next) });
+  core = new SatelliteCore({ config, saveConfig: (next) => store.save(next), networkHistoryPath: path.join(app.getPath("userData"), "network-tests.json") });
   core.events.on("status", (status: SatelliteStatus) => {
     latestStatus = status;
     sendToRenderers("satellite:status", status);
@@ -163,6 +163,7 @@ const startCore = async (): Promise<void> => {
   core.launcher.on("cancelled", () =>
     sendToRenderers("satellite:launch-cancelled", true),
   );
+  core.network.on("state", (state) => sendToRenderers("satellite:network-test", state));
   ipcMain.handle("satellite:get-status", () => latestStatus);
   ipcMain.handle("satellite:get-config", () => core?.getConfig());
   ipcMain.handle("satellite:get-branding", () =>
@@ -181,6 +182,9 @@ const startCore = async (): Promise<void> => {
   ipcMain.handle("satellite:get-system-stats", () =>
     core?.monitor.getSnapshot(),
   );
+  ipcMain.handle("satellite:get-network-test", () => core?.network.getState());
+  ipcMain.handle("satellite:run-network-test", () => core?.runManualNetworkTest());
+  ipcMain.handle("satellite:cancel-network-test", () => core?.network.cancel() ?? false);
   ipcMain.handle("satellite:get-activity", () =>
     structuredClone(recentActivity),
   );

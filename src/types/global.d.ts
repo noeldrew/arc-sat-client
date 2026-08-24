@@ -9,6 +9,9 @@ declare global {
       getConfig(): Promise<import("../core/config").SatelliteConfig>;
       getBranding(): Promise<import("../core/branding").Branding>;
       getSystemStats(): Promise<import("../core/system-monitor").SystemSnapshot | undefined>;
+      getNetworkTest(): Promise<import("../core/network-diagnostics").NetworkTestState>;
+      runNetworkTest(): Promise<import("../core/network-diagnostics").NetworkTestResult>;
+      cancelNetworkTest(): Promise<boolean>;
       getActivity(): Promise<import("../core/events").ActivityEntry[]>;
       openConsole(): Promise<void>;
       getPortConflict(): Promise<{ port: number; pid: number; command: string; user: string } | undefined>;
@@ -27,6 +30,7 @@ declare global {
       onActivity(listener: (value: import("../core/events").ActivityEntry) => void): () => void;
       onConfig(listener: (value: import("../core/config").SatelliteConfig) => void): () => void;
       onSystemStats(listener: (value: import("../core/system-monitor").SystemSnapshot) => void): () => void;
+      onNetworkTest(listener: (value: import("../core/network-diagnostics").NetworkTestState) => void): () => void;
       onLaunchScheduled(listener: (value: { reason: string; delaySeconds: number }) => void): () => void;
       onLaunchCancelled(listener: () => void): () => void;
     };
