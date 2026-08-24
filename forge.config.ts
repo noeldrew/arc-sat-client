@@ -9,8 +9,13 @@ const config: ForgeConfig = {
     asar: true,
     name: "ARC Client",
     executableName: "arc-client",
+    icon: "assets/icons/arc-client",
   },
-  makers: [new MakerSquirrel({}), new MakerZIP({}, ["darwin"]), new MakerDMG({})],
+  makers: [
+    new MakerSquirrel({ setupIcon: "assets/icons/arc-client.ico" }),
+    new MakerZIP({}, ["darwin"]),
+    new MakerDMG({}),
+  ],
   plugins: [
     new VitePlugin({
       build: [
