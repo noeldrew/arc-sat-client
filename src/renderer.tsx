@@ -4,6 +4,7 @@ import type { SatelliteConfig } from "./core/config";
 import type { ActivityEntry, SatelliteStatus } from "./core/events";
 import type { SystemSnapshot } from "./core/system-monitor";
 import type { NetworkTestState } from "./core/network-diagnostics";
+import "@fontsource/sora/latin-500.css";
 import "./styles.css";
 
 const pages = [
@@ -1405,15 +1406,16 @@ function SplashScreen(): React.JSX.Element {
   return (
     <main className="startup-splash">
       <section className="splash-content">
-        <svg className="splash-arc-mark" viewBox="0 0 100 100" role="img" aria-label="ARC Client">
-          <path d="M15 37h18l15-15h20" />
-          <path d="m59 13 13 13-13 13" />
-          <path d="M85 63H67L52 78H32" />
-          <path d="m41 87-13-13 13-13" />
-          <path d="M68 26 32 74" />
+        <div className="splash-index">ARC / CLIENT</div>
+        <svg className="splash-arc-mark" viewBox="0 0 120 120" role="img" aria-label="ARC Client">
+          <path d="M14 47h24l20-20h34" />
+          <path d="m79 14 13 13-13 13" />
+          <path d="M106 73H82L62 93H28" />
+          <path d="m41 80-13 13 13 13" />
+          <path d="M92 27 28 93" />
         </svg>
         <p className="splash-powered">Powered by ARC</p>
-        <p className="splash-developer">Developed by Brave Duck &amp; Robots</p>
+        <p className="splash-developer">© BD&amp;R Software 2026</p>
         <div className="splash-progress" aria-hidden="true"><span /></div>
       </section>
     </main>

@@ -15,6 +15,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@fontsource/sora": "^5.3.0",
     "electron-squirrel-startup": "latest",
     "react": "latest",
     "react-dom": "latest",
