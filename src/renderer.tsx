@@ -1387,6 +1387,33 @@ function ConsoleWindow(): React.JSX.Element {
   return <SystemConsole activity={activity} close={() => window.close()} standalone />;
 }
 
+function SplashScreen(): React.JSX.Element {
+  const params = new URLSearchParams(window.location.search);
+  const logo = params.get("logo");
+  const [logoFailed, setLogoFailed] = useState(false);
+  const platformName = params.get("name") || "ARC";
+  const style = {
+    "--splash-primary": params.get("primary") || "#ff5733",
+    "--splash-background": params.get("background") || "#101a35",
+    "--splash-text": params.get("text") || "#ffffff",
+  } as React.CSSProperties;
+  return (
+    <main className="startup-splash" style={style}>
+      <div className="splash-glow" />
+      <section className="splash-content">
+        {logo && !logoFailed ? (
+          <img className="splash-logo" src={logo} alt={platformName} onError={() => setLogoFailed(true)} />
+        ) : (
+          <div className="splash-monogram" aria-label={platformName}>A</div>
+        )}
+        <p className="splash-powered">Powered by ARC</p>
+        <p className="splash-developer">Developed by Brave Duck &amp; Robots</p>
+        <div className="splash-progress" aria-hidden="true"><span /></div>
+      </section>
+    </main>
+  );
+}
+
 function App(): React.JSX.Element {
   const [page, setPage] = useState<Page>("Overview");
   const [addTriggerRequest, setAddTriggerRequest] = useState(0);
@@ -1839,7 +1866,9 @@ function App(): React.JSX.Element {
 }
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    {new URLSearchParams(window.location.search).get("view") === "console" ? (
+    {new URLSearchParams(window.location.search).get("view") === "splash" ? (
+      <SplashScreen />
+    ) : new URLSearchParams(window.location.search).get("view") === "console" ? (
       <ConsoleWindow />
     ) : (
       <App />

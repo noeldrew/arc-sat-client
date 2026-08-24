@@ -19,6 +19,7 @@ if (started) app.quit();
 let core: SatelliteCore | undefined;
 let mainWindow: BrowserWindow | undefined;
 let consoleWindow: BrowserWindow | undefined;
+const splashDurationMs = 3_000;
 const headless = process.argv.includes("--headless");
 let latestStatus: SatelliteStatus = {
   cloud: "stopped",
@@ -115,6 +116,56 @@ const createWindow = async (): Promise<void> => {
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
     );
   }
+};
+
+const createSplashWindow = async (): Promise<BrowserWindow> => {
+  const config = await new ConfigStore().load();
+  const branding = await new BrandingService(
+    path.join(app.getPath("userData"), "branding-cache.json"),
+  ).loadCached();
+  const splash = new BrowserWindow({
+    width: 1280,
+    height: 820,
+    minWidth: 980,
+    minHeight: 640,
+    show: false,
+    frame: false,
+    resizable: false,
+    fullscreen: config.clientFullscreen,
+    backgroundColor: branding.sidebar_background_colour ?? "#101a35",
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  const query = {
+    view: "splash",
+    name: branding.platform_name,
+    logo: branding.logo_url ?? "",
+    primary: branding.primary_colour ?? "#ff5733",
+    background: branding.sidebar_background_colour ?? "#101a35",
+    text: branding.sidebar_text_colour ?? "#ffffff",
+  };
+  const ready = new Promise<void>((resolve) => {
+    splash.once("ready-to-show", () => {
+      splash.show();
+      resolve();
+    });
+  });
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    const url = new URL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    Object.entries(query).forEach(([key, value]) => url.searchParams.set(key, value));
+    await splash.loadURL(url.toString());
+  } else {
+    await splash.loadFile(
+      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+      { query },
+    );
+  }
+  await ready;
+  return splash;
 };
 
 const openConsoleWindow = async (): Promise<void> => {
@@ -425,8 +476,12 @@ if (!hasLock) {
     }
   });
   app.whenReady().then(async () => {
+    const splash = headless ? undefined : await createSplashWindow();
+    if (splash)
+      await new Promise((resolve) => setTimeout(resolve, splashDurationMs));
     await startCore();
     if (!headless) await createWindow();
+    splash?.destroy();
   });
 }
 
