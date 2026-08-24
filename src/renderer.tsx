@@ -1084,7 +1084,7 @@ function Monitor({
         {networkTest.result?.error && <div className="recovery-error">{networkTest.result.error}</div>}
         {networkTestError && <div className="recovery-error">{networkTestError}</div>}
         {!!networkTest.result?.reasons.length && <div className="notice">Below configured targets: {networkTest.result.reasons.join(" · ")}</div>}
-        {!!networkTest.history.length && <div className="network-history"><h3>Recent tests</h3>{networkTest.history.slice(0, 5).map((item) => <div key={item.testedAt}><time>{new Date(item.testedAt).toLocaleString()}</time><strong className={item.status}>{item.status}</strong><span>{item.latencyMs?.toFixed(0) ?? "—"} ms</span><span>↓ {item.downloadMbps?.toFixed(1) ?? "—"}</span><span>↑ {item.uploadMbps?.toFixed(1) ?? "—"} Mbps</span></div>)}</div>}
+        {!!networkTest.history.length && <div className="network-history"><h3>Recent tests</h3><div className="network-history-header"><span>Date / Time</span><span>Result</span><span>Latency</span><span>Download</span><span>Upload</span></div>{networkTest.history.slice(0, 5).map((item) => <div key={item.testedAt}><time>{new Date(item.testedAt).toLocaleString()}</time><strong className={item.status}>{item.status}</strong><span>{item.latencyMs?.toFixed(0) ?? "—"} ms</span><span>↓ {item.downloadMbps?.toFixed(1) ?? "—"} Mbps</span><span>↑ {item.uploadMbps?.toFixed(1) ?? "—"} Mbps</span></div>)}</div>}
       </section>
       <section className="panel form">
         <h2>CPU Cores</h2>
