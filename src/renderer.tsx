@@ -146,6 +146,11 @@ const eventName = (entry: ActivityEntry): string => {
     return `${type}: ${String(entry.message.trigger_id)}`;
   return type;
 };
+const titleCaseStatus = (value: string): string =>
+  value
+    .split(/[-_\s]+/)
+    .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`)
+    .join(" ");
 const filterActivity = (
   activity: ActivityEntry[],
   preferences: ActivityPreferences,
@@ -350,7 +355,7 @@ function Overview({
       <div className="cards">
         <Stat
           label="ARC SERVER"
-          value={status.cloud}
+          value={titleCaseStatus(status.cloud)}
           detail="Authenticated cloud WebSocket"
         />
         <Stat
