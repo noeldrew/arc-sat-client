@@ -1390,7 +1390,6 @@ function ConsoleWindow(): React.JSX.Element {
 function SplashScreen(): React.JSX.Element {
   return (
     <main className="startup-splash">
-      <div className="splash-glow" />
       <section className="splash-content">
         <svg className="splash-arc-mark" viewBox="0 0 100 100" role="img" aria-label="ARC Client">
           <path d="M15 37h18l15-15h20" />

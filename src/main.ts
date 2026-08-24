@@ -128,8 +128,10 @@ const createSplashWindow = async (): Promise<BrowserWindow> => {
     show: false,
     frame: false,
     resizable: false,
+    transparent: true,
+    hasShadow: false,
     fullscreen: config.clientFullscreen,
-    backgroundColor: "#f7f5f2",
+    backgroundColor: "#00000000",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
