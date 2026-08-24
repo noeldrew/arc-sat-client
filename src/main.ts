@@ -76,12 +76,16 @@ const sendToRenderers = (channel: string, payload: unknown): void => {
     window.webContents.send(channel, payload);
 };
 
-const createWindow = async (): Promise<void> => {
+const createWindow = async (options: {
+  showWhenReady?: boolean;
+  bounds?: Electron.Rectangle;
+} = {}): Promise<BrowserWindow> => {
   const window = new BrowserWindow({
     width: 1280,
     height: 820,
     minWidth: 980,
     minHeight: 640,
+    ...(options.bounds ?? {}),
     show: false,
     backgroundColor: "#f5f7fb",
     fullscreen: core?.getConfig().clientFullscreen ?? false,
@@ -108,7 +112,15 @@ const createWindow = async (): Promise<void> => {
     if (mainWindow === window) mainWindow = undefined;
   });
 
-  window.once("ready-to-show", () => window.show());
+  const uiReady = new Promise<void>((resolve) => {
+    const handler = (event: Electron.IpcMainEvent): void => {
+      if (event.sender !== window.webContents) return;
+      ipcMain.removeListener("satellite:ui-ready", handler);
+      resolve();
+    };
+    ipcMain.on("satellite:ui-ready", handler);
+    window.once("closed", () => ipcMain.removeListener("satellite:ui-ready", handler));
+  });
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     await window.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
@@ -116,6 +128,9 @@ const createWindow = async (): Promise<void> => {
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
     );
   }
+  await uiReady;
+  if (options.showWhenReady !== false) window.show();
+  return window;
 };
 
 const createSplashWindow = async (): Promise<BrowserWindow> => {
@@ -139,6 +154,7 @@ const createSplashWindow = async (): Promise<BrowserWindow> => {
       sandbox: true,
     },
   });
+  splash.setAlwaysOnTop(true);
   const query = {
     view: "splash",
   };
@@ -489,8 +505,23 @@ if (!hasLock) {
     if (splash)
       await new Promise((resolve) => setTimeout(resolve, splashDurationMs));
     await startCore();
-    if (!headless) await createWindow();
-    splash?.destroy();
+    if (!headless) {
+      const window = await createWindow({
+        showWhenReady: false,
+        bounds: splash?.getBounds(),
+      });
+      window.showInactive();
+      if (splash && !splash.isDestroyed()) {
+        // Give the compositor a frame to place the fully rendered main window
+        // behind the transparent splash before its backdrop begins to fade.
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        splash.webContents.send("satellite:splash-exit", true);
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        splash.destroy();
+      }
+      window.show();
+      window.focus();
+    }
   });
 }
 

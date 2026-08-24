@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld("arcSatellite", {
   runNetworkTest: () => ipcRenderer.invoke("satellite:run-network-test"),
   cancelNetworkTest: () => ipcRenderer.invoke("satellite:cancel-network-test"),
   getActivity: () => ipcRenderer.invoke("satellite:get-activity"),
+  uiReady: () => ipcRenderer.send("satellite:ui-ready"),
   openConsole: () => ipcRenderer.invoke("satellite:open-console"),
   setTitlebarColors: (background: string, foreground: string) => ipcRenderer.invoke("satellite:set-titlebar-colors", background, foreground),
   getPortConflict: () => ipcRenderer.invoke("satellite:get-port-conflict"),
@@ -40,4 +41,5 @@ contextBridge.exposeInMainWorld("arcSatellite", {
   onLaunchScheduled: (listener: (value: unknown) => void) => subscribe("satellite:launch-scheduled", listener),
   onLaunchCancelled: (listener: (value: unknown) => void) => subscribe("satellite:launch-cancelled", listener),
   onAddTrigger: (listener: () => void) => subscribe("satellite:menu-add-trigger", listener),
+  onSplashExit: (listener: () => void) => subscribe("satellite:splash-exit", listener),
 });

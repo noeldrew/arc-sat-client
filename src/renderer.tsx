@@ -1403,8 +1403,10 @@ function ConsoleWindow(): React.JSX.Element {
 }
 
 function SplashScreen(): React.JSX.Element {
+  const [exiting, setExiting] = useState(false);
+  useEffect(() => window.arcSatellite.onSplashExit(() => setExiting(true)), []);
   return (
-    <main className="startup-splash">
+    <main className={`startup-splash ${exiting ? "is-exiting" : ""}`}>
       <section className="splash-content">
         <div className="splash-index">ARC / CLIENT</div>
         <svg className="splash-arc-mark" viewBox="0 0 120 120" role="img" aria-label="ARC Client">
@@ -1654,6 +1656,9 @@ function App(): React.JSX.Element {
       void window.arcSatellite.setTitlebarColors(
         "#ffffff",
         branding.text_colour ?? "#14213d",
+      );
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => window.arcSatellite.uiReady()),
       );
     });
     return () => off.forEach((dispose) => dispose());

@@ -47,7 +47,6 @@ body {
   -webkit-backdrop-filter: blur(20px) saturate(0.8);
   user-select: none;
   -webkit-app-region: drag;
-  animation: splash-backdrop-out 450ms ease 2.55s forwards;
 }
 .splash-content {
   position: relative;
@@ -61,7 +60,12 @@ body {
   border-radius: 8px;
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.42);
   font-family: "Sora", sans-serif;
-  animation: splash-panel-out 450ms cubic-bezier(0.4, 0, 0.2, 1) 2.55s forwards;
+}
+.startup-splash.is-exiting {
+  animation: splash-backdrop-out 450ms ease forwards;
+}
+.startup-splash.is-exiting .splash-content {
+  animation: splash-panel-out 450ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 .splash-index {
   width: 100%;

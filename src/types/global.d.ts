@@ -13,6 +13,7 @@ declare global {
       runNetworkTest(): Promise<import("../core/network-diagnostics").NetworkTestResult>;
       cancelNetworkTest(): Promise<boolean>;
       getActivity(): Promise<import("../core/events").ActivityEntry[]>;
+      uiReady(): void;
       openConsole(): Promise<void>;
       setTitlebarColors(background: string, foreground: string): Promise<void>;
       getPortConflict(): Promise<{ port: number; pid: number; command: string; user: string } | undefined>;
@@ -36,6 +37,7 @@ declare global {
       onLaunchScheduled(listener: (value: { reason: string; delaySeconds: number }) => void): () => void;
       onLaunchCancelled(listener: () => void): () => void;
       onAddTrigger(listener: () => void): () => void;
+      onSplashExit(listener: () => void): () => void;
     };
   }
 }
