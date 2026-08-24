@@ -230,8 +230,11 @@ header {
   min-height: 0;
   width: 100%;
   padding: 28px;
-  max-width: 1500px;
   overflow-y: auto;
+}
+.page > * {
+  width: 100%;
+  max-width: 1500px;
 }
 .page.activity-page {
   display: flex;
@@ -625,13 +628,42 @@ textarea {
 }
 .network-results {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-top: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin-top: 22px;
 }
 .network-results .stat {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  min-width: 0;
+  min-height: 126px;
+  padding: 18px 20px;
   box-shadow: none;
   background: var(--arc-muted-bg);
+}
+.network-results .stat small,
+.network-results .stat strong,
+.network-results .stat span {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.network-results .stat small {
+  color: var(--arc-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.network-results .stat strong {
+  color: var(--arc-text);
+  font-size: clamp(18px, 1.45vw, 22px);
+  line-height: 1.15;
+}
+.network-results .stat span {
+  color: var(--arc-muted);
+  font-size: 13px;
+  line-height: 1.4;
 }
 .network-history {
   margin-top: 18px;
@@ -875,6 +907,13 @@ textarea {
   }
   .core-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .network-results {
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  }
+  .network-results .stat {
+    min-height: 116px;
+    padding: 16px;
   }
 }
 .modal-backdrop {
