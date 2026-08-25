@@ -7,6 +7,23 @@ import type { NetworkTestState } from "./core/network-diagnostics";
 import "@fontsource/sora/latin-500.css";
 import "./styles.css";
 
+const FONT_STACKS: Record<string, string> = {
+  Inter: "'Inter', sans-serif",
+  "System UI": "system-ui, -apple-system, 'Segoe UI', sans-serif",
+  Georgia: "Georgia, 'Times New Roman', serif",
+  Poppins: "'Poppins', sans-serif",
+};
+const applyBrandFont = (name: string | null | undefined, variable: string, linkId: string): void => {
+  if (!name) return;
+  const safeName = name.trim();
+  if (!/^[A-Za-z0-9 ._-]+$/.test(safeName)) return;
+  document.documentElement.style.setProperty(variable, FONT_STACKS[safeName] || `'${safeName}', sans-serif`);
+  if (!FONT_STACKS[safeName]) {
+    const link = (document.getElementById(linkId) as HTMLLinkElement | null) || document.head.appendChild(Object.assign(document.createElement("link"), { id: linkId, rel: "stylesheet" }));
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(safeName).replace(/%20/g, "+")}:wght@400;500;600;700&display=swap`;
+  }
+};
+
 const pages = [
   "Overview",
   "Trigger Events",
@@ -1617,6 +1634,8 @@ function App(): React.JSX.Element {
       setBrandName(branding.platform_name);
       setBrandLogo(branding.logo_url ?? undefined);
       setLogoOnly(branding.logo_only);
+      applyBrandFont(branding.font_family, "--arc-font-family", "arc-base-google-font");
+      applyBrandFont(branding.title_font_family || branding.font_family, "--arc-title-font-family", "arc-title-google-font");
       const root = document.documentElement.style;
       const values: Array<[string, string | null | undefined]> = [
         ["--arc-primary", branding.primary_colour],
@@ -1648,7 +1667,6 @@ function App(): React.JSX.Element {
             ? `${branding.input_height_px}px`
             : undefined,
         ],
-        ["--arc-font-family", branding.font_family],
       ];
       values.forEach(([key, value]) => {
         if (value) root.setProperty(key, value);

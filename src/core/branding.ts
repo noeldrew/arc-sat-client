@@ -9,7 +9,7 @@ export const BrandingSchema = z.object({
   sidebar_text_colour: z.string().nullish(), sidebar_hover_background_colour: z.string().nullish(),
   sidebar_selected_background_colour: z.string().nullish(), border_colour: z.string().nullish(),
   input_height_px: z.number().nullish(), corner_radius_px: z.number().nullish(), scrollbar_width_px: z.number().nullish(),
-  font_family: z.string().nullish(), base_font_size_px: z.number().nullish(), support_email: z.string().nullish(), support_url: z.string().nullish(),
+  font_family: z.string().nullish(), title_font_family: z.string().nullish(), base_font_size_px: z.number().nullish(), support_email: z.string().nullish(), support_url: z.string().nullish(),
 }).passthrough();
 export type Branding = z.infer<typeof BrandingSchema>;
 

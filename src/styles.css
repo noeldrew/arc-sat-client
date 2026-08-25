@@ -142,6 +142,9 @@ body {
 button {
   font: inherit;
 }
+h1, h2, h3, .page-title {
+  font-family: var(--arc-title-font-family, var(--arc-font-family, Inter)), system-ui, sans-serif;
+}
 .shell {
   height: 100vh;
   display: grid;
