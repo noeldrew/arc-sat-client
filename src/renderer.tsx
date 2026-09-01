@@ -4,6 +4,7 @@ import type { SatelliteConfig } from "./core/config";
 import type { ActivityEntry, SatelliteStatus } from "./core/events";
 import type { SystemSnapshot } from "./core/system-monitor";
 import type { NetworkTestState } from "./core/network-diagnostics";
+import type { Branding } from "./core/branding";
 import "@fontsource/sora/latin-500.css";
 import "./styles.css";
 
@@ -22,6 +23,26 @@ const applyBrandFont = (name: string | null | undefined, variable: string, linkI
     const link = (document.getElementById(linkId) as HTMLLinkElement | null) || document.head.appendChild(Object.assign(document.createElement("link"), { id: linkId, rel: "stylesheet" }));
     link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(safeName).replace(/%20/g, "+")}:wght@400;500;600;700&display=swap`;
   }
+};
+const applyBrandingVariables = (branding: Branding): void => {
+  applyBrandFont(branding.font_family, "--arc-font-family", "arc-base-google-font");
+  applyBrandFont(branding.title_font_family || branding.font_family, "--arc-title-font-family", "arc-title-google-font");
+  const values: Array<[string, string | null | undefined]> = [
+    ["--arc-primary", branding.primary_colour], ["--arc-primary-text", branding.primary_text_colour],
+    ["--arc-accent", branding.accent_colour], ["--arc-accent-text", branding.accent_text_colour],
+    ["--arc-bg", branding.background_colour], ["--arc-surface", branding.surface_colour],
+    ["--arc-inset", branding.surface_inset_colour], ["--arc-text", branding.text_colour],
+    ["--arc-muted-bg", branding.muted_colour], ["--arc-muted", branding.muted_text_colour],
+    ["--arc-sidebar", branding.sidebar_background_colour], ["--arc-sidebar-text", branding.sidebar_text_colour],
+    ["--arc-sidebar-hover", branding.sidebar_hover_background_colour], ["--arc-sidebar-hover-text", branding.sidebar_hover_text_colour],
+    ["--arc-sidebar-selected", branding.sidebar_selected_background_colour], ["--arc-sidebar-selected-text", branding.sidebar_selected_text_colour],
+    ["--arc-border", branding.border_colour],
+    ["--arc-radius", branding.corner_radius_px == null ? undefined : `${branding.corner_radius_px}px`],
+    ["--arc-font-size", branding.base_font_size_px ? `${branding.base_font_size_px}px` : undefined],
+    ["--arc-input-height", branding.control_height_px ?? branding.input_height_px ? `${branding.control_height_px ?? branding.input_height_px}px` : undefined],
+    ["--arc-scrollbar-width", branding.scrollbar_width_px == null ? undefined : `${branding.scrollbar_width_px}px`],
+  ];
+  values.forEach(([key, value]) => { if (value) document.documentElement.style.setProperty(key, value); });
 };
 
 const pages = [
@@ -1409,6 +1430,7 @@ function ConsoleWindow(): React.JSX.Element {
   }, []);
   useEffect(() => {
     void window.arcSatellite.getBranding().then((branding) => {
+      applyBrandingVariables(branding);
       const sidebar = branding.sidebar_background_colour ?? "#101a35";
       const sidebarText = branding.sidebar_text_colour ?? "#ffffff";
       document.documentElement.style.setProperty("--arc-sidebar", sidebar);
@@ -1639,14 +1661,21 @@ function App(): React.JSX.Element {
       const root = document.documentElement.style;
       const values: Array<[string, string | null | undefined]> = [
         ["--arc-primary", branding.primary_colour],
+        ["--arc-primary-text", branding.primary_text_colour],
         ["--arc-accent", branding.accent_colour],
+        ["--arc-accent-text", branding.accent_text_colour],
         ["--arc-bg", branding.background_colour],
+        ["--arc-surface", branding.surface_colour],
+        ["--arc-inset", branding.surface_inset_colour],
         ["--arc-text", branding.text_colour],
         ["--arc-muted-bg", branding.muted_colour],
+        ["--arc-muted", branding.muted_text_colour],
         ["--arc-sidebar", branding.sidebar_background_colour],
         ["--arc-sidebar-text", branding.sidebar_text_colour],
         ["--arc-sidebar-hover", branding.sidebar_hover_background_colour],
+        ["--arc-sidebar-hover-text", branding.sidebar_hover_text_colour],
         ["--arc-sidebar-selected", branding.sidebar_selected_background_colour],
+        ["--arc-sidebar-selected-text", branding.sidebar_selected_text_colour],
         ["--arc-border", branding.border_colour],
         [
           "--arc-radius",
@@ -1663,8 +1692,14 @@ function App(): React.JSX.Element {
         ],
         [
           "--arc-input-height",
-          branding.input_height_px
-            ? `${branding.input_height_px}px`
+          branding.control_height_px ?? branding.input_height_px
+            ? `${branding.control_height_px ?? branding.input_height_px}px`
+            : undefined,
+        ],
+        [
+          "--arc-scrollbar-width",
+          branding.scrollbar_width_px !== null && branding.scrollbar_width_px !== undefined
+            ? `${branding.scrollbar_width_px}px`
             : undefined,
         ],
       ];
@@ -1672,7 +1707,7 @@ function App(): React.JSX.Element {
         if (value) root.setProperty(key, value);
       });
       void window.arcSatellite.setTitlebarColors(
-        "#ffffff",
+        branding.surface_colour ?? "#ffffff",
         branding.text_colour ?? "#14213d",
       );
       requestAnimationFrame(() =>

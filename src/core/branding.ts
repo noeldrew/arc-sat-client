@@ -4,11 +4,14 @@ import { z } from "zod";
 
 export const BrandingSchema = z.object({
   platform_name: z.string().default("ARC"), logo_url: z.string().url().nullish(), logo_only: z.boolean().default(false),
-  primary_colour: z.string().nullish(), accent_colour: z.string().nullish(), background_colour: z.string().nullish(),
-  text_colour: z.string().nullish(), muted_colour: z.string().nullish(), sidebar_background_colour: z.string().nullish(),
+  primary_colour: z.string().nullish(), primary_text_colour: z.string().nullish(),
+  accent_colour: z.string().nullish(), accent_text_colour: z.string().nullish(), background_colour: z.string().nullish(),
+  surface_colour: z.string().nullish(), surface_inset_colour: z.string().nullish(),
+  text_colour: z.string().nullish(), muted_colour: z.string().nullish(), muted_text_colour: z.string().nullish(), sidebar_background_colour: z.string().nullish(),
   sidebar_text_colour: z.string().nullish(), sidebar_hover_background_colour: z.string().nullish(),
-  sidebar_selected_background_colour: z.string().nullish(), border_colour: z.string().nullish(),
-  input_height_px: z.number().nullish(), corner_radius_px: z.number().nullish(), scrollbar_width_px: z.number().nullish(),
+  sidebar_hover_text_colour: z.string().nullish(), sidebar_selected_background_colour: z.string().nullish(),
+  sidebar_selected_text_colour: z.string().nullish(), border_colour: z.string().nullish(),
+  input_height_px: z.number().nullish(), control_height_px: z.number().nullish(), corner_radius_px: z.number().nullish(), scrollbar_width_px: z.number().nullish(),
   font_family: z.string().nullish(), title_font_family: z.string().nullish(), base_font_size_px: z.number().nullish(), support_email: z.string().nullish(), support_url: z.string().nullish(),
 }).passthrough();
 export type Branding = z.infer<typeof BrandingSchema>;
