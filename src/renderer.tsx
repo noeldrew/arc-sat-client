@@ -422,7 +422,7 @@ function Overview({
           detail="Current system load"
         />
       </div>
-      <section className="panel">
+      <section className="panel recent-activity-panel">
         <div className="section-title">
           <h2>Recent activity</h2>
           <span>{activity.length} messages</span>
