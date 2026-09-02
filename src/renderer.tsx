@@ -5,6 +5,9 @@ import type { ActivityEntry, SatelliteStatus } from "./core/events";
 import type { SystemSnapshot } from "./core/system-monitor";
 import type { NetworkTestState } from "./core/network-diagnostics";
 import type { Branding } from "./core/branding";
+import "@fontsource/inter/latin-400.css";
+import "@fontsource/inter/latin-500.css";
+import "@fontsource/inter/latin-600.css";
 import "@fontsource/sora/latin-500.css";
 import "./styles.css";
 
@@ -299,6 +302,7 @@ function ActivityLog({
           {(["all", "cloud", "app", "errors"] as const).map((item) => (
             <button
               className={scope === item ? "selected" : ""}
+              aria-pressed={scope === item}
               onClick={() => setScope(item)}
               key={item}
             >
@@ -313,6 +317,7 @@ function ActivityLog({
         <div className="toolbar-actions">
           <button
             className={preferences.showAcks ? "selected" : ""}
+            aria-pressed={preferences.showAcks}
             onClick={() =>
               setPreferences((current) => ({
                 ...current,
@@ -324,6 +329,7 @@ function ActivityLog({
           </button>
           <button
             className={preferences.showPing ? "selected" : ""}
+            aria-pressed={preferences.showPing}
             onClick={() =>
               setPreferences((current) => ({
                 ...current,
@@ -335,6 +341,7 @@ function ActivityLog({
           </button>
           <button
             className={group ? "selected" : ""}
+            aria-pressed={group}
             onClick={() => setGroup(!group)}
           >
             Group by Session

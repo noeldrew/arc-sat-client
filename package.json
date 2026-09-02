@@ -1,6 +1,6 @@
 {
   "name": "arc-satellite-client",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "private": true,
   "description": "ARC desktop client",
   "main": ".vite/build/main.js",
@@ -15,6 +15,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@fontsource/inter": "^5.3.0",
     "@fontsource/sora": "^5.3.0",
     "electron-squirrel-startup": "latest",
     "react": "latest",
@@ -34,8 +35,8 @@
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@types/ws": "^8.5.13",
-    "electron": "latest",
     "@vitejs/plugin-react": "latest",
+    "electron": "latest",
     "typescript": "^5.7.0",
     "vite": "latest",
     "vitest": "latest"
