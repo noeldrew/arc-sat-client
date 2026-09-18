@@ -160,7 +160,7 @@ const Field = ({
   children: React.ReactNode;
 }) => (
   <label className="field">
-    <span>{label}</span>
+    <span className="field-label">{label}</span>
     {children}
     {hint && <small>{hint}</small>}
   </label>

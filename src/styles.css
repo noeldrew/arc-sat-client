@@ -730,12 +730,19 @@ button.primary {
 }
 .field {
   display: grid;
+  grid-template-rows: auto auto;
+  align-content: start;
   gap: 8px;
   color: var(--arc-text);
   font-size: 13px;
   font-weight: 650;
 }
-.field > span {
+.field > .field-label {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  min-height: 1.4em;
+  line-height: 1.4;
   color: var(--arc-text);
 }
 .field small {
