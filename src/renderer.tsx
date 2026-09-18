@@ -8,11 +8,15 @@ import type { Branding } from "./core/branding";
 import "@fontsource/inter/latin-400.css";
 import "@fontsource/inter/latin-500.css";
 import "@fontsource/inter/latin-600.css";
+import "@fontsource/sora/latin-400.css";
 import "@fontsource/sora/latin-500.css";
+import "@fontsource/sora/latin-600.css";
+import "@fontsource/sora/latin-700.css";
 import "./styles.css";
 
 const FONT_STACKS: Record<string, string> = {
   Inter: "'Inter', sans-serif",
+  Sora: "'Sora', sans-serif",
   "System UI": "system-ui, -apple-system, 'Segoe UI', sans-serif",
   Georgia: "Georgia, 'Times New Roman', serif",
   Poppins: "'Poppins', sans-serif",
