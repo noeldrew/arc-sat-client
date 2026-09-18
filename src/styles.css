@@ -1407,3 +1407,10 @@ nav button{font-size:14px;line-height:18px;font-weight:500}
 .nav-icon{width:16px;height:16px;flex-basis:16px}
 .field{font-size:13px;font-weight:600}.field small{font-size:12px;font-weight:400}
 .connection-badge,.status,.badge{min-height:30px;padding:0 10px;gap:6px;border-radius:var(--arc-radius);font-size:11px;line-height:1;font-weight:400}.connection-badge strong{font-weight:600}.connection-badge i{width:7px;height:7px}
+
+/* Portal sidebar parity: navigation rows are desktop navigation, not branded
+   form controls, so their geometry intentionally stays fixed at h-8. */
+.sidebar nav{gap:4px;padding:16px}
+.sidebar nav button{height:32px;min-height:32px;max-height:32px;gap:16px;padding:8px;border-radius:max(0px,calc(var(--arc-radius) - 2px));font-size:14px;line-height:16px;font-weight:400}
+.sidebar nav button.active{font-weight:500}
+.sidebar nav button .nav-icon{width:16px;height:16px;flex:0 0 16px}
