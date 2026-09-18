@@ -726,6 +726,7 @@ button.primary {
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
+  align-items: start;
   gap: 18px;
 }
 .field {
@@ -750,6 +751,15 @@ button.primary {
   font-size: 12px;
   font-weight: 400;
   line-height: 1.4;
+}
+.field > input,
+.field > select,
+.field > .input-action input,
+.field > .path-row input,
+.field > .unit input {
+  height: var(--arc-input-height);
+  min-height: var(--arc-input-height);
+  max-height: var(--arc-input-height);
 }
 .input-action,
 .path-row {
