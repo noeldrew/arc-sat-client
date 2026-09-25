@@ -237,7 +237,7 @@ const startCore = async (): Promise<void> => {
     sendToRenderers("satellite:emergency", emergency);
     if (!emergency.cleared && emergency.severity === "critical") { mainWindow?.show(); mainWindow?.setAlwaysOnTop(true, "screen-saver"); mainWindow?.focus(); }
     if (emergency.cleared) mainWindow?.setAlwaysOnTop(false);
-  });
+  }, message => core?.events.log("system", message));
   core.events.on("status", (status: SatelliteStatus) => {
     latestStatus = status;
     sendToRenderers("satellite:status", status);

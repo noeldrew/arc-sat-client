@@ -17,7 +17,7 @@ export const SatelliteConfigSchema = z.object({
   serverUrl: z.string().default("http://localhost:8080"),
   apiToken: z.string().optional(),
   siteController: z.object({
-    enabled: z.boolean().default(false),
+    enabled: z.boolean().default(true),
     url: z.string().default("ws://localhost:25400/control"),
     token: z.string().optional(),
   }).default({}),

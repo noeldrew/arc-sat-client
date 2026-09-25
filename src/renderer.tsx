@@ -1561,7 +1561,7 @@ function App(): React.JSX.Element {
           zone: "Zone A",
           applicationType: "game",
           serverUrl: "http://localhost:8080",
-          siteController: { enabled: false, url: "ws://localhost:25400/control" },
+          siteController: { enabled: true, url: "ws://localhost:25400/control" },
           clientFullscreen: false,
           localWsPort: 25585,
           localHttpEnabled: true,
