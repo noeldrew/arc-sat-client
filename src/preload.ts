@@ -42,4 +42,5 @@ contextBridge.exposeInMainWorld("arcSatellite", {
   onLaunchCancelled: (listener: (value: unknown) => void) => subscribe("satellite:launch-cancelled", listener),
   onAddTrigger: (listener: () => void) => subscribe("satellite:menu-add-trigger", listener),
   onSplashExit: (listener: () => void) => subscribe("satellite:splash-exit", listener),
+  onEmergency: (listener: (value: unknown) => void) => subscribe("satellite:emergency", listener),
 });

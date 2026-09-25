@@ -10,6 +10,8 @@ import type { ActivityEntry, SatelliteStatus } from "./core/events";
 import { SatelliteCore } from "./core/satellite-core";
 import { BrandingService } from "./core/branding";
 import { Diagnostics } from "./core/diagnostics";
+import { executeHostPowerAction } from "./core/system-power";
+import { SiteControllerClient } from "./core/site-controller-client";
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -17,6 +19,7 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 if (started) app.quit();
 
 let core: SatelliteCore | undefined;
+let siteController: SiteControllerClient | undefined;
 let mainWindow: BrowserWindow | undefined;
 let consoleWindow: BrowserWindow | undefined;
 const splashDurationMs = 3_000;
@@ -229,7 +232,12 @@ const startCore = async (): Promise<void> => {
     path.join(app.getPath("userData"), "diagnostics"),
   );
   const config = await store.load();
-  core = new SatelliteCore({ config, saveConfig: (next) => store.save(next), networkHistoryPath: path.join(app.getPath("userData"), "network-tests.json") });
+  core = new SatelliteCore({ config, saveConfig: (next) => store.save(next), networkHistoryPath: path.join(app.getPath("userData"), "network-tests.json"), executePowerAction: executeHostPowerAction });
+  siteController = new SiteControllerClient(() => core!.getConfig(), emergency => {
+    sendToRenderers("satellite:emergency", emergency);
+    if (!emergency.cleared && emergency.severity === "critical") { mainWindow?.show(); mainWindow?.setAlwaysOnTop(true, "screen-saver"); mainWindow?.focus(); }
+    if (emergency.cleared) mainWindow?.setAlwaysOnTop(false);
+  });
   core.events.on("status", (status: SatelliteStatus) => {
     latestStatus = status;
     sendToRenderers("satellite:status", status);
@@ -241,7 +249,7 @@ const startCore = async (): Promise<void> => {
     sendToRenderers("satellite:activity", entry);
     void diagnostics.append(entry);
   });
-  core.events.on("config", (next) => sendToRenderers("satellite:config", next));
+  core.events.on("config", (next) => { sendToRenderers("satellite:config", next); siteController?.restart(); });
   core.events.on("system-stats", (stats) =>
     sendToRenderers("satellite:system-stats", stats),
   );
@@ -487,6 +495,7 @@ const startCore = async (): Promise<void> => {
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(menu));
   await core.start();
+  siteController.start();
 };
 
 const hasLock = app.requestSingleInstanceLock();
@@ -534,5 +543,6 @@ app.on("activate", () => {
 });
 
 app.on("before-quit", () => {
+  siteController?.stop();
   void core?.stop();
 });

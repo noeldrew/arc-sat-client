@@ -12,11 +12,13 @@ import type { CloudInboundMessage } from "./protocol/cloud";
 import type { TriggerDefinition } from "./protocol/common";
 import type { LocalInboundMessage } from "./protocol/local";
 import { NetworkDiagnostics, type NetworkTestResult } from "./network-diagnostics";
+import { normalisePowerAction, type HostPowerAction, type PowerPayload } from "./system-power";
 
 export interface SatelliteCoreOptions {
   config: SatelliteConfig;
   saveConfig: (config: SatelliteConfig) => Promise<void>;
   networkHistoryPath?: string;
+  executePowerAction?: (action: HostPowerAction, payload: PowerPayload) => Promise<void>;
 }
 
 export class SatelliteCore {
@@ -209,6 +211,27 @@ export class SatelliteCore {
       this.events.emit("snapshot-requested");
       return;
     }
+    const powerAction = normalisePowerAction(message.action);
+    if (powerAction) {
+      const payload = (message.payload ?? {}) as PowerPayload;
+      const requestId = message.request_id ?? (typeof message.payload?.request_id === "string" ? message.payload.request_id : undefined);
+      this.events.log("system", { type: "remote-power-command", action: powerAction, request_id: requestId });
+      this.cloud.send({ type: "system-command-result", client_id: this.config.clientId, action: powerAction, status: "accepted", ...(requestId ? { request_id: requestId } : {}) });
+      const execute = this.options.executePowerAction;
+      if (!execute) {
+        this.cloud.send({ type: "system-command-result", client_id: this.config.clientId, action: powerAction, status: "failed", ...(requestId ? { request_id: requestId } : {}), detail: "System power control is unavailable on this client." });
+        return;
+      }
+      void execute(powerAction, payload).then(() => {
+        this.events.log("system", { type: "remote-power-command-completed", action: powerAction, request_id: requestId });
+        this.cloud.send({ type: "system-command-result", client_id: this.config.clientId, action: powerAction, status: "completed", ...(requestId ? { request_id: requestId } : {}) });
+      }).catch((error: unknown) => {
+        const detail = error instanceof Error ? error.message : String(error);
+        this.events.log("error", { source: "remote-power-command", action: powerAction, detail });
+        this.cloud.send({ type: "system-command-result", client_id: this.config.clientId, action: powerAction, status: "failed", ...(requestId ? { request_id: requestId } : {}), detail });
+      });
+      return;
+    }
     if (message.action === "session_end") {
       this.local.send({ type: "session-end", session_id: message.session_id ?? this.cloudSessionId });
       this.clearSession();
@@ -319,7 +342,7 @@ export class SatelliteCore {
 
 export const createTestConfig = (patch: Partial<SatelliteConfig> = {}): SatelliteConfig => ({
   schemaVersion: 1, clientId: randomUUID(), name: "ARC Client", description: "", zone: "", applicationType: "",
-  serverUrl: "http://localhost:8080", clientFullscreen: false, localWsPort: 25585, localHttpEnabled: true, localHttpPort: 25586,
+  serverUrl: "http://localhost:8080", siteController: { enabled: false, url: "ws://localhost:25400/control" }, clientFullscreen: false, localWsPort: 25585, localHttpEnabled: true, localHttpPort: 25586,
   localTcpEnabled: true, localTcpPort: 25587, localUdpEnabled: true, localUdpPort: 25588, triggers: [],
   launcher: { type: "none", path: "", script: "", onConnect: false, onClientStart: false, clientStartDelaySeconds: 5, onSession: false, delaySeconds: 5, queueSession: true, autoRelaunch: false, relaunchCooldownSeconds: 60 },
   monitoring: { processes: [], cpuThreshold: 85, ramThreshold: 90, diskThreshold: 90, intervalSeconds: 15, networkLatencyThresholdMs: 100, networkDownloadMinimumMbps: 10, networkUploadMinimumMbps: 5 },

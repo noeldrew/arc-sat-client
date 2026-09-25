@@ -45,6 +45,14 @@ export const CloudOutboundSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("system_alert"), client_id: z.string().min(1), process: z.string(), status: z.enum(["running", "stopped"]), timestamp: z.string() }),
   z.object({ type: z.literal("snapshot-response"), client_id: z.string().min(1), stats: z.record(JsonValueSchema) }),
+  z.object({
+    type: z.literal("system-command-result"),
+    client_id: z.string().min(1),
+    action: z.enum(["restart", "sleep", "shutdown", "wake-on-lan"]),
+    status: z.enum(["accepted", "completed", "failed"]),
+    request_id: z.string().optional(),
+    detail: z.string().optional(),
+  }),
 ]);
 
 const CloudAckSchema = z.object({
@@ -58,6 +66,7 @@ const CloudAckSchema = z.object({
 export const CloudCommandSchema = z.object({
   type: z.literal("command"),
   action: z.string(),
+  request_id: z.string().optional(),
   session_id: z.string().optional(),
   customer_id: z.string().optional(),
   customer: CustomerSchema.optional(),

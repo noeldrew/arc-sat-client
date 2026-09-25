@@ -16,6 +16,11 @@ export const SatelliteConfigSchema = z.object({
   applicationType: z.string().default(""),
   serverUrl: z.string().default("http://localhost:8080"),
   apiToken: z.string().optional(),
+  siteController: z.object({
+    enabled: z.boolean().default(false),
+    url: z.string().default("ws://localhost:25400/control"),
+    token: z.string().optional(),
+  }).default({}),
   clientFullscreen: z.boolean().default(false),
   localWsPort: z.number().int().min(1024).max(65535).default(25585),
   localHttpEnabled: z.boolean().default(true),
@@ -86,6 +91,8 @@ export class ConfigStore {
       if (typeof raw.apiTokenEncrypted === "string" && safeStorage.isEncryptionAvailable()) {
         raw.apiToken = safeStorage.decryptString(Buffer.from(raw.apiTokenEncrypted, "base64"));
       }
+      const controller = raw.siteController as Record<string, unknown> | undefined;
+      if (controller && typeof controller.tokenEncrypted === "string" && safeStorage.isEncryptionAvailable()) controller.token = safeStorage.decryptString(Buffer.from(controller.tokenEncrypted, "base64"));
       delete raw.apiTokenEncrypted;
       const config = migrateLegacyConfig(raw);
       if (config.name === "ARC Satellite") {
@@ -105,6 +112,9 @@ export class ConfigStore {
     if (parsed.apiToken && safeStorage.isEncryptionAvailable()) {
       persisted.apiTokenEncrypted = safeStorage.encryptString(parsed.apiToken).toString("base64");
       delete persisted.apiToken;
+    }
+    if (parsed.siteController.token && safeStorage.isEncryptionAvailable()) {
+      persisted.siteController = { ...parsed.siteController, tokenEncrypted: safeStorage.encryptString(parsed.siteController.token).toString("base64"), token: undefined };
     }
     await mkdir(path.dirname(this.filePath), { recursive: true });
     const temporary = `${this.filePath}.tmp`;

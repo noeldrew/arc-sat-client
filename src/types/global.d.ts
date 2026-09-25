@@ -38,6 +38,7 @@ declare global {
       onLaunchCancelled(listener: () => void): () => void;
       onAddTrigger(listener: () => void): () => void;
       onSplashExit(listener: () => void): () => void;
+      onEmergency(listener: (value: { eventId: string; severity: string; title: string; message: string; instruction?: string; cleared?: boolean }) => void): () => void;
     };
   }
 }

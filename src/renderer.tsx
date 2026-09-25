@@ -736,6 +736,15 @@ function Settings({
         </div>
       </section>
       <section className="panel form">
+        <h2>ARC SITE Controller</h2>
+        <p>Connect this client to the on-site controller for grouped power management and emergency messages.</p>
+        <label className="check-line"><input type="checkbox" checked={draft.siteController.enabled} onChange={e=>update("siteController",{...draft.siteController,enabled:e.target.checked})}/> Enable site controller connection</label>
+        <div className="form-grid">
+          <Field label="Controller WebSocket URL"><input value={draft.siteController.url} onChange={e=>update("siteController",{...draft.siteController,url:e.target.value})} placeholder="ws://controller.local:25400/control"/></Field>
+          <Field label="Client pairing token"><input type="password" value={draft.siteController.token||""} onChange={e=>update("siteController",{...draft.siteController,token:e.target.value||undefined})}/></Field>
+        </div>
+      </section>
+      <section className="panel form">
         <h2>Local App Transports</h2>
         <p>
           The SDK normally connects to the local WebSocket. Optional transports
@@ -1507,6 +1516,7 @@ function App(): React.JSX.Element {
   const [dismissedConflict, setDismissedConflict] = useState<string>();
   const [recoveringPort, setRecoveringPort] = useState(false);
   const [portRecoveryError, setPortRecoveryError] = useState<string>();
+  const [emergency, setEmergency] = useState<{eventId:string;severity:string;title:string;message:string;instruction?:string;cleared?:boolean}>();
   useEffect(() => {
     if (!launchPending) {
       setLaunchSecondsRemaining(0);
@@ -1551,6 +1561,7 @@ function App(): React.JSX.Element {
           zone: "Zone A",
           applicationType: "game",
           serverUrl: "http://localhost:8080",
+          siteController: { enabled: false, url: "ws://localhost:25400/control" },
           clientFullscreen: false,
           localWsPort: 25585,
           localHttpEnabled: true,
@@ -1638,6 +1649,7 @@ function App(): React.JSX.Element {
         setPage("Trigger Events");
         setAddTriggerRequest((current) => current + 1);
       }),
+      window.arcSatellite.onEmergency(value => setEmergency(value.cleared ? undefined : value)),
     ];
     void Promise.all([
       window.arcSatellite.getStatus(),
@@ -1895,6 +1907,7 @@ function App(): React.JSX.Element {
           </div>
         </div>
       )}
+      {emergency && <div className={`emergency-overlay ${emergency.severity}`} role="alertdialog" aria-modal="true"><section><small>ARC SITE · {emergency.severity.toUpperCase()}</small><h1>{emergency.title}</h1><p>{emergency.message}</p>{emergency.instruction&&<strong>{emergency.instruction}</strong>}</section></div>}
       {portConflict && (
         <div className="modal-backdrop">
           <section className="modal port-recovery-modal" role="alertdialog" aria-modal="true">
