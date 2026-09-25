@@ -139,7 +139,8 @@ export class CloudClient extends EventEmitter {
       return;
     }
     const message = result.data;
-    this.events.log("cloud-in", message as unknown as Record<string, unknown>);
+    const logged = message.type === "site-controller-config" ? { ...message, pairing_token: "[redacted]" } : message;
+    this.events.log("cloud-in", logged as unknown as Record<string, unknown>);
     if (message.type === "ping") this.send({ type: "pong", client_id: this.config.clientId });
     if (message.type === "ack" && message.ref === "connect") {
       this.clearRegistrationTimer();
