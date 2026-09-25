@@ -19,6 +19,7 @@ export const SatelliteConfigSchema = z.object({
   siteController: z.object({
     enabled: z.boolean().default(true),
     url: z.string().default("ws://localhost:25400/control"),
+    endpoints: z.array(z.string()).default([]),
     token: z.string().optional(),
   }).default({}),
   clientFullscreen: z.boolean().default(false),

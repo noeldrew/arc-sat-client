@@ -79,6 +79,7 @@ export const CloudInboundSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("session_start"), session_id: z.string().min(1), customer: CustomerSchema.optional(), payload: z.record(JsonValueSchema).optional() }).passthrough(),
   z.object({ type: z.literal("ping") }).passthrough(),
   z.object({ type: z.literal("error"), detail: z.string().optional() }).passthrough(),
+  z.object({ type: z.literal("site-controller-config"), site_id: z.string().uuid(), endpoints: z.array(z.string()).min(1), pairing_token: z.string().min(1) }).passthrough(),
 ]);
 
 export type CloudOutboundMessage = z.infer<typeof CloudOutboundSchema>;

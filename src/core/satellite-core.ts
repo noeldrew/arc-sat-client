@@ -190,6 +190,13 @@ export class SatelliteCore {
   }
 
   private handleCloud(message: CloudInboundMessage): void {
+    if (message.type === "site-controller-config") {
+      this.config.siteController = { ...this.config.siteController, enabled: true, endpoints: message.endpoints, url: message.endpoints[0]!, token: message.pairing_token };
+      void this.options.saveConfig(this.config);
+      this.events.emit("config", this.getConfig());
+      this.events.log("system", { type: "site-controller-config-updated", endpoints: message.endpoints });
+      return;
+    }
     if (message.type === "ack" && message.ref === "triggers-update") {
       this.updateStatus({ triggersRegistered: true });
       this.events.log("system", { type: "triggers-registered" });
@@ -342,7 +349,7 @@ export class SatelliteCore {
 
 export const createTestConfig = (patch: Partial<SatelliteConfig> = {}): SatelliteConfig => ({
   schemaVersion: 1, clientId: randomUUID(), name: "ARC Client", description: "", zone: "", applicationType: "",
-  serverUrl: "http://localhost:8080", siteController: { enabled: true, url: "ws://localhost:25400/control" }, clientFullscreen: false, localWsPort: 25585, localHttpEnabled: true, localHttpPort: 25586,
+  serverUrl: "http://localhost:8080", siteController: { enabled: true, url: "ws://localhost:25400/control", endpoints: [] }, clientFullscreen: false, localWsPort: 25585, localHttpEnabled: true, localHttpPort: 25586,
   localTcpEnabled: true, localTcpPort: 25587, localUdpEnabled: true, localUdpPort: 25588, triggers: [],
   launcher: { type: "none", path: "", script: "", onConnect: false, onClientStart: false, clientStartDelaySeconds: 5, onSession: false, delaySeconds: 5, queueSession: true, autoRelaunch: false, relaunchCooldownSeconds: 60 },
   monitoring: { processes: [], cpuThreshold: 85, ramThreshold: 90, diskThreshold: 90, intervalSeconds: 15, networkLatencyThresholdMs: 100, networkDownloadMinimumMbps: 10, networkUploadMinimumMbps: 5 },
