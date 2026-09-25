@@ -34,6 +34,7 @@ const applyBrandFont = (name: string | null | undefined, variable: string, linkI
 const applyBrandingVariables = (branding: Branding): void => {
   applyBrandFont(branding.font_family, "--arc-font-family", "arc-base-google-font");
   applyBrandFont(branding.title_font_family || branding.font_family, "--arc-title-font-family", "arc-title-google-font");
+  applyBrandFont(branding.monospace_font_family, "--arc-monospace-font-family", "arc-mono-google-font");
   const values: Array<[string, string | null | undefined]> = [
     ["--arc-primary", branding.primary_colour], ["--arc-primary-text", branding.primary_text_colour],
     ["--arc-accent", branding.accent_colour], ["--arc-accent-text", branding.accent_text_colour],
@@ -48,6 +49,13 @@ const applyBrandingVariables = (branding: Branding): void => {
     ["--arc-font-size", branding.base_font_size_px ? `${branding.base_font_size_px}px` : undefined],
     ["--arc-input-height", branding.control_height_px ?? branding.input_height_px ? `${branding.control_height_px ?? branding.input_height_px}px` : undefined],
     ["--arc-scrollbar-width", branding.scrollbar_width_px == null ? undefined : `${branding.scrollbar_width_px}px`],
+    ["--arc-page-title-size", branding.page_title_font_size_px ? `${branding.page_title_font_size_px}px` : undefined],
+    ["--arc-detail-title-size", branding.detail_title_font_size_px ? `${branding.detail_title_font_size_px}px` : undefined],
+    ["--arc-section-title-size", branding.section_title_font_size_px ? `${branding.section_title_font_size_px}px` : undefined],
+    ["--arc-control-text-size", branding.control_font_size_px ? `${branding.control_font_size_px}px` : undefined],
+    ["--arc-label-size", branding.label_font_size_px ? `${branding.label_font_size_px}px` : undefined],
+    ["--arc-supporting-size", branding.supporting_font_size_px ? `${branding.supporting_font_size_px}px` : undefined],
+    ["--arc-micro-size", branding.micro_font_size_px ? `${branding.micro_font_size_px}px` : undefined],
   ];
   values.forEach(([key, value]) => { if (value) document.documentElement.style.setProperty(key, value); });
 };
@@ -1681,6 +1689,7 @@ function App(): React.JSX.Element {
       setLogoOnly(branding.logo_only);
       applyBrandFont(branding.font_family, "--arc-font-family", "arc-base-google-font");
       applyBrandFont(branding.title_font_family || branding.font_family, "--arc-title-font-family", "arc-title-google-font");
+      applyBrandFont(branding.monospace_font_family, "--arc-monospace-font-family", "arc-mono-google-font");
       const root = document.documentElement.style;
       const values: Array<[string, string | null | undefined]> = [
         ["--arc-primary", branding.primary_colour],
@@ -1700,6 +1709,13 @@ function App(): React.JSX.Element {
         ["--arc-sidebar-selected", branding.sidebar_selected_background_colour],
         ["--arc-sidebar-selected-text", branding.sidebar_selected_text_colour],
         ["--arc-border", branding.border_colour],
+        ["--arc-page-title-size", branding.page_title_font_size_px ? `${branding.page_title_font_size_px}px` : undefined],
+        ["--arc-detail-title-size", branding.detail_title_font_size_px ? `${branding.detail_title_font_size_px}px` : undefined],
+        ["--arc-section-title-size", branding.section_title_font_size_px ? `${branding.section_title_font_size_px}px` : undefined],
+        ["--arc-control-text-size", branding.control_font_size_px ? `${branding.control_font_size_px}px` : undefined],
+        ["--arc-label-size", branding.label_font_size_px ? `${branding.label_font_size_px}px` : undefined],
+        ["--arc-supporting-size", branding.supporting_font_size_px ? `${branding.supporting_font_size_px}px` : undefined],
+        ["--arc-micro-size", branding.micro_font_size_px ? `${branding.micro_font_size_px}px` : undefined],
         [
           "--arc-radius",
           branding.corner_radius_px !== null &&

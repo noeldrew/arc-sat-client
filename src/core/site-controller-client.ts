@@ -18,7 +18,7 @@ export class SiteControllerClient {
     const endpoint = endpoints[index]!; let opened = false;
     this.activity({ type: "site-controller-connecting", endpoint, priority: index + 1 });
     this.socket = new WebSocket(endpoint, target.token ? { headers: { Authorization: `Bearer ${target.token}` }, handshakeTimeout: 2500 } : { handshakeTimeout: 2500 });
-    this.socket.on("open", () => { opened = true; this.activity({ type: "site-controller-connected", endpoint, priority: index + 1 }); this.send({ type: "register", client_id: config.clientId, name: config.name, site_id: config.siteId, zone: config.zone, version: "1.6.10", capabilities: ["restart", "sleep", "shutdown"] }); });
+    this.socket.on("open", () => { opened = true; this.activity({ type: "site-controller-connected", endpoint, priority: index + 1 }); this.send({ type: "register", client_id: config.clientId, name: config.name, site_id: config.siteId, zone: config.zone, version: "1.6.11", capabilities: ["restart", "sleep", "shutdown"] }); });
     this.socket.on("message", data => { const message = JSON.parse(data.toString()) as Record<string, unknown>; this.activity({ type: "site-controller-message", ...message }); void this.handle(message); });
     this.socket.on("close", () => { if (!this.stopped) this.reconnect = setTimeout(() => this.connect(opened ? 0 : index + 1), opened ? 1000 : 0); });
     this.socket.on("error", error => this.activity({ type: "site-controller-connection-failed", endpoint, detail: error.message }));

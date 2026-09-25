@@ -12,7 +12,10 @@ export const BrandingSchema = z.object({
   sidebar_hover_text_colour: z.string().nullish(), sidebar_selected_background_colour: z.string().nullish(),
   sidebar_selected_text_colour: z.string().nullish(), border_colour: z.string().nullish(),
   input_height_px: z.number().nullish(), control_height_px: z.number().nullish(), corner_radius_px: z.number().nullish(), scrollbar_width_px: z.number().nullish(),
-  font_family: z.string().nullish(), title_font_family: z.string().nullish(), base_font_size_px: z.number().nullish(), support_email: z.string().nullish(), support_url: z.string().nullish(),
+  font_family: z.string().nullish(), title_font_family: z.string().nullish(), monospace_font_family: z.string().nullish(),
+  page_title_font_size_px: z.number().nullish(), detail_title_font_size_px: z.number().nullish(), section_title_font_size_px: z.number().nullish(),
+  base_font_size_px: z.number().nullish(), control_font_size_px: z.number().nullish(), label_font_size_px: z.number().nullish(),
+  supporting_font_size_px: z.number().nullish(), micro_font_size_px: z.number().nullish(), support_email: z.string().nullish(), support_url: z.string().nullish(),
 }).passthrough();
 export type Branding = z.infer<typeof BrandingSchema>;
 

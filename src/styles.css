@@ -1414,4 +1414,16 @@ nav button{font-size:14px;line-height:18px;font-weight:500}
 .sidebar nav button{height:32px;min-height:32px;max-height:32px;gap:16px;padding:8px;border-radius:max(0px,calc(var(--arc-radius) - 2px));font-size:14px;line-height:16px;font-weight:400}
 .sidebar nav button.active{font-weight:500}
 .sidebar nav button .nav-icon{width:16px;height:16px;flex:0 0 16px}
+
+/* ARC semantic typography. Navigation geometry remains suite-standardised;
+   application content follows the roles configured by ARC branding. */
+.page,.modal,.console-window{font-size:var(--arc-font-size,16px)}
+.headline h1{font-size:var(--arc-page-title-size,30px);line-height:1.2}
+.cards strong,.modal h2,.detail-title{font-size:var(--arc-detail-title-size,24px);line-height:1.25}
+.panel h2,.section-title h2,.recent-activity-panel>.section-title h2{font-size:var(--arc-section-title-size,18px);line-height:1.4}
+button,input,select,textarea,.activity-row,.table-content-text{font-size:var(--arc-control-text-size,14px);line-height:1.45}
+.field,.field-label,label{font-size:var(--arc-label-size,14px);line-height:1.25}
+.headline p,.panel p,.cards span,.field small,.hint,.supporting,.section-title>span{font-size:var(--arc-supporting-size,12px);line-height:1.4}
+.cards small,.eyebrow,.status,.badge,.connection-badge,.micro{font-size:var(--arc-micro-size,10px);line-height:1.35}
+code,pre,.activity-row,.activity-item{font-family:var(--arc-monospace-font-family,'Space Mono',Menlo,monospace)}
 .emergency-overlay{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:48px;background:rgba(8,16,34,.94);color:#fff;text-align:center}.emergency-overlay section{max-width:820px}.emergency-overlay small{letter-spacing:.18em;font-weight:700}.emergency-overlay h1{margin:28px 0 16px;font:600 clamp(42px,7vw,88px)/1 var(--arc-title-font-family,Sora),sans-serif}.emergency-overlay p{font-size:clamp(20px,3vw,34px);line-height:1.35}.emergency-overlay strong{display:block;margin-top:28px;padding:18px;border:2px solid currentColor;font-size:20px}.emergency-overlay.warning{background:rgba(119,77,0,.96)}.emergency-overlay.critical{background:rgba(129,18,25,.97)}
