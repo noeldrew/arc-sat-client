@@ -122,16 +122,6 @@ body {
   user-select: none;
   -webkit-app-region: drag;
 }
-.custom-titlebar::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 16rem;
-  height: 1px;
-  background: var(--arc-border);
-  pointer-events: none;
-}
 .splash-content {
   position: relative;
   display: flex;
@@ -1397,7 +1387,7 @@ button.danger {
 
 /* Final semantic layer: intentionally last so legacy page rules cannot replace
    branding roles supplied by ARC. */
-.custom-titlebar{background:linear-gradient(to right,var(--arc-sidebar) 0,var(--arc-sidebar) 16rem,color-mix(in srgb,var(--arc-surface) 94%,var(--arc-text)) 16rem,color-mix(in srgb,var(--arc-surface) 94%,var(--arc-text)) 100%)}
+.custom-titlebar{background:var(--arc-sidebar);color:var(--arc-sidebar-text)}
 .brand{min-height:116px;padding:20px 24px;align-items:flex-end}.brand.logo-only{padding:20px 24px}.brand.logo-only img{max-height:138px;object-position:left bottom}
 nav{gap:4px;padding:16px}nav button{min-height:var(--arc-input-height);padding:0 12px;border-radius:var(--arc-radius);color:var(--arc-sidebar-text)}nav button:hover{color:var(--arc-sidebar-hover-text);background:var(--arc-sidebar-hover)}nav button.active{color:var(--arc-sidebar-selected-text);background:var(--arc-sidebar-selected);font-weight:500}
 header{min-height:76px;padding:0 32px;background:var(--arc-surface)}.page{padding:28px 32px 36px;background:var(--arc-bg)}.headline h1{font-size:30px;line-height:36px;letter-spacing:-.035em;font-weight:500}.headline p{font-size:14px;line-height:20px;color:var(--arc-muted)}
