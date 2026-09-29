@@ -6,7 +6,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { ConfigStore, SatelliteConfigSchema } from "./core/config";
-import type { ActivityEntry, SatelliteStatus } from "./core/events";
+import type { ActivityEntry, SatelliteStatus, SiteControllerConnectionState } from "./core/events";
 import { SatelliteCore } from "./core/satellite-core";
 import { BrandingService } from "./core/branding";
 import { Diagnostics } from "./core/diagnostics";
@@ -31,6 +31,7 @@ let latestStatus: SatelliteStatus = {
   localAppRegistered: false,
   triggersRegistered: false,
 };
+let siteControllerConnection: SiteControllerConnectionState = "stopped";
 const recentActivity: ActivityEntry[] = [];
 const execFileAsync = promisify(execFile);
 
@@ -237,10 +238,14 @@ const startCore = async (): Promise<void> => {
     sendToRenderers("satellite:emergency", emergency);
     if (!emergency.cleared && emergency.severity === "critical") { mainWindow?.show(); mainWindow?.setAlwaysOnTop(true, "screen-saver"); mainWindow?.focus(); }
     if (emergency.cleared) mainWindow?.setAlwaysOnTop(false);
-  }, message => core?.events.log("system", message));
+  }, message => core?.events.log("system", message), state => {
+    siteControllerConnection = state;
+    latestStatus = { ...latestStatus, siteController: state };
+    sendToRenderers("satellite:status", latestStatus);
+  });
   core.events.on("status", (status: SatelliteStatus) => {
-    latestStatus = status;
-    sendToRenderers("satellite:status", status);
+    latestStatus = { ...status, siteController: siteControllerConnection };
+    sendToRenderers("satellite:status", latestStatus);
   });
   core.events.on("activity", (entry: ActivityEntry) => {
     recentActivity.push(entry);

@@ -15,21 +15,27 @@ describe("SiteControllerClient", () => {
     if (typeof address === "string" || address === null) throw new Error("Expected TCP address");
 
     let registrations = 0;
+    const states: string[] = [];
     server.on("connection", (socket) => socket.on("message", (raw) => {
       const message = JSON.parse(raw.toString()) as Record<string, unknown>;
-      if (message.type === "register") registrations += 1;
+      if (message.type === "register") {
+        registrations += 1;
+        socket.send(JSON.stringify({ type: "registered", controller: "ARC SITE" }));
+      }
     }));
 
     const endpoint = `ws://127.0.0.1:${address.port}`;
     const config = createTestConfig({ siteController: { enabled: true, url: endpoint, endpoints: [endpoint] } });
-    const client = new SiteControllerClient(() => config, () => undefined, () => undefined);
+    const client = new SiteControllerClient(() => config, () => undefined, () => undefined, (state) => states.push(state));
     client.start();
     await waitFor(() => registrations === 1);
+    await waitFor(() => states.at(-1) === "connected");
     client.restart();
     await waitFor(() => registrations === 2);
 
     await new Promise((resolve) => setTimeout(resolve, 1_200));
     expect(registrations).toBe(2);
+    expect(states.at(-1)).toBe("connected");
     client.stop();
   });
 });

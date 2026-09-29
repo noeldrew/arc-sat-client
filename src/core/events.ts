@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 
 export type ConnectionState = "stopped" | "starting" | "connecting" | "registering" | "connected" | "reconnecting" | "auth-failed" | "error";
+export type SiteControllerConnectionState = "disabled" | "stopped" | "connecting" | "registering" | "connected" | "reconnecting" | "unreachable";
 export type LogDirection = "cloud-in" | "cloud-out" | "local-in" | "local-out" | "system" | "error";
 
 export interface ActivityEntry {
@@ -18,6 +19,7 @@ export interface SatelliteStatus {
   cloudSessionId?: string;
   localSessionId?: string;
   transportError?: string;
+  siteController?: SiteControllerConnectionState;
 }
 
 export class SatelliteEvents extends EventEmitter {

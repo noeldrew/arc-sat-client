@@ -1834,6 +1834,19 @@ function App(): React.JSX.Element {
       : status.localAppRegistered && !status.triggersRegistered
         ? "Registering triggers"
         : "Waiting for app";
+  const controllerState = status.siteController ?? (config?.siteController.enabled ? "stopped" : "disabled");
+  const controllerLevel: "red" | "amber" | "green" = controllerState === "connected"
+    ? "green"
+    : ["connecting", "registering", "reconnecting"].includes(controllerState)
+      ? "amber"
+      : "red";
+  const controllerLabel = controllerState === "connected"
+    ? "Connected"
+    : controllerState === "disabled"
+      ? "Disabled"
+      : controllerState === "unreachable"
+        ? "Unreachable"
+        : controllerState.charAt(0).toUpperCase() + controllerState.slice(1);
   return (
     <main className="shell">
       <div className="custom-titlebar" aria-hidden="true">
@@ -1895,6 +1908,11 @@ function App(): React.JSX.Element {
               label="System"
               state={systemState}
               level={systemLevel}
+            />
+            <ConnectionBadge
+              label="Controller"
+              state={controllerLabel}
+              level={controllerLevel}
             />
           </div>
         </header>
