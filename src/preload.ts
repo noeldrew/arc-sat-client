@@ -9,6 +9,7 @@ const subscribe = <T>(channel: string, listener: (value: T) => void): (() => voi
 contextBridge.exposeInMainWorld("arcSatellite", {
   platform: process.platform,
   version: process.versions.electron,
+  getVersion: () => ipcRenderer.invoke("satellite:get-version"),
   getStatus: () => ipcRenderer.invoke("satellite:get-status"),
   getConfig: () => ipcRenderer.invoke("satellite:get-config"),
   getBranding: () => ipcRenderer.invoke("satellite:get-branding"),

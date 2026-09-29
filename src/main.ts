@@ -260,6 +260,7 @@ const startCore = async (): Promise<void> => {
     sendToRenderers("satellite:launch-cancelled", true),
   );
   core.network.on("state", (state) => sendToRenderers("satellite:network-test", state));
+  ipcMain.handle("satellite:get-version", () => app.getVersion());
   ipcMain.handle("satellite:get-status", () => latestStatus);
   ipcMain.handle("satellite:get-config", () => core?.getConfig());
   ipcMain.handle("satellite:get-branding", () =>

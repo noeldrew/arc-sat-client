@@ -12,6 +12,7 @@ import "@fontsource/sora/latin-400.css";
 import "@fontsource/sora/latin-500.css";
 import "@fontsource/sora/latin-600.css";
 import "@fontsource/sora/latin-700.css";
+import clientInsetMark from "./assets/arc-client-inset-mark.png";
 import "./styles.css";
 
 const FONT_STACKS: Record<string, string> = {
@@ -1471,18 +1472,17 @@ function ConsoleWindow(): React.JSX.Element {
 
 function SplashScreen(): React.JSX.Element {
   const [exiting, setExiting] = useState(false);
-  useEffect(() => window.arcSatellite.onSplashExit(() => setExiting(true)), []);
+  const [version, setVersion] = useState("");
+  useEffect(() => {
+    const unsubscribe = window.arcSatellite.onSplashExit(() => setExiting(true));
+    void window.arcSatellite.getVersion().then(setVersion);
+    return unsubscribe;
+  }, []);
   return (
     <main className={`startup-splash ${exiting ? "is-exiting" : ""}`}>
       <section className="splash-content">
-        <div className="splash-index">ARC / CLIENT</div>
-        <svg className="splash-arc-mark" viewBox="0 0 120 120" role="img" aria-label="ARC Client">
-          <path d="M14 47h24l20-20h34" />
-          <path d="m79 14 13 13-13 13" />
-          <path d="M106 73H82L62 93H28" />
-          <path d="m41 80-13 13 13 13" />
-          <path d="M92 27 28 93" />
-        </svg>
+        <div className="splash-index"><span>ARC / CLIENT</span>{version && <span>VERSION {version}</span>}</div>
+        <img className="splash-arc-mark" src={clientInsetMark} alt="ARC Client" />
         <p className="splash-powered">Powered by ARC</p>
         <p className="splash-developer">© BD&amp;R Software 2026</p>
         <div className="splash-progress" aria-hidden="true"><span /></div>

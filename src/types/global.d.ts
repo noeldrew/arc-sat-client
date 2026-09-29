@@ -5,6 +5,7 @@ declare global {
     arcSatellite: {
       platform: string;
       version: string;
+      getVersion(): Promise<string>;
       getStatus(): Promise<import("../core/events").SatelliteStatus>;
       getConfig(): Promise<import("../core/config").SatelliteConfig>;
       getBranding(): Promise<import("../core/branding").Branding>;
