@@ -7,6 +7,7 @@ import { VitePlugin } from "@electron-forge/plugin-vite";
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    extraResource: ["SDK"],
     name: "ARC Client",
     executableName: "arc-client",
     icon: "assets/icons/arc-client",

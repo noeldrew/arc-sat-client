@@ -1,0 +1,85 @@
+{
+  "_comment": "This is an example of the customer object received in the session-start event. All optional fields may be null or absent depending on venue configuration.",
+  "customer": {
+    "id": "cust_01HXYZ9ABCDEF1234567890AB",
+    "first_name": "Jamie",
+    "last_name": "Archer",
+    "display_name": "Jamie A.",
+    "email": "jamie.archer@example.com",
+    "phone": null,
+    "avatar_url": "https://cdn.example.com/avatars/cust_01HXYZ.png",
+    "date_of_birth": null,
+    "age_verified": false,
+    "locale": "en-GB",
+    "created_at": "2025-09-12T10:24:00Z",
+    "wristband": {
+      "id": "wb_01HXYZ9ABCDEF0000000001WB",
+      "uid": "A3F59C1D",
+      "wristband_number": "WB-20459",
+      "status": "active",
+      "issued_at": "2026-07-25T09:00:00Z",
+      "expires_at": "2026-07-25T22:00:00Z",
+      "wallet_balance_pence": 2400,
+      "wallet_balance_formatted": "£24.00",
+      "pass_type": "day_pass",
+      "zone_access": ["main-floor", "vip-lounge", "arcade"],
+      "colour": "#f97316",
+      "meta": {
+        "group_id": "grp_summer_camp_2026",
+        "guest_type": "adult",
+        "locker_number": "A-042"
+      }
+    },
+    "loyalty": {
+      "membership_id": "loy_01HXYZ9ABCDEF0000000001LY",
+      "tier": "gold",
+      "tier_label": "Gold Member",
+      "points_balance": 4750,
+      "points_label": "4,750 pts",
+      "lifetime_points": 12300,
+      "next_tier": "platinum",
+      "points_to_next_tier": 5250,
+      "tier_progress_percent": 47.5,
+      "unrevealed_rewards": 2,
+      "recent_achievements": [
+        {
+          "id": "ach_high_score_001",
+          "name": "Arcade Master",
+          "description": "Reach a high score on any arcade machine",
+          "earned_at": "2026-07-20T16:45:00Z",
+          "points_awarded": 500
+        }
+      ]
+    },
+    "booking": {
+      "order_id": "ord_01HXYZ9ABCDEF0000000001OR",
+      "order_reference": "ARC-20726-HJKL",
+      "ticket_id": "tkt_01HXYZ9ABCDEF0000000001TK",
+      "ticket_type": "Standard Day Pass",
+      "session_id": "sess_01HXYZ9ABCDEF000000001SES",
+      "session_name": "Saturday Morning Session",
+      "session_start": "2026-07-25T10:00:00Z",
+      "session_end": "2026-07-25T13:00:00Z",
+      "add_ons": [
+        {
+          "id": "addon_photo_pkg",
+          "name": "Photo Package",
+          "quantity": 1,
+          "redeemed": false
+        }
+      ]
+    },
+    "custom_fields": {
+      "team_name": "Blue Thunder",
+      "preferred_difficulty": "hard",
+      "notes": ""
+    }
+  },
+  "session_id": "ws_sess_01HXYZ9ABCDEF000SATELLITE",
+  "session_started_at": "2026-07-25T14:23:01Z",
+  "site": {
+    "id": "site_01HXYZ9ABCDEF0000001SITE",
+    "name": "Arc Adventure Park — East Wing",
+    "zone": "arcade-zone-3"
+  }
+}

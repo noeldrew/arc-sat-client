@@ -1,0 +1,12 @@
+{
+  "name": "arc-satellite-sdk-example",
+  "version": "1.0.0",
+  "description": "Node.js example for the Arc Satellite SDK",
+  "main": "example.js",
+  "scripts": {
+    "start": "node example.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

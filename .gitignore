@@ -6,3 +6,9 @@ coverage/
 *.log
 .DS_Store
 config.json
+
+# Python satellite SDK development artifacts
+__pycache__/
+*.py[cod]
+SDK/Python/build/
+SDK/Python/*.egg-info/
