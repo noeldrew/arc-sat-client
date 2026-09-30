@@ -6,6 +6,11 @@ import { CloudInboundMessage, CloudInboundSchema, CloudOutboundMessage, CloudOut
 
 const DEFAULT_REGISTRATION_TIMEOUT_MS = 10_000;
 
+export const validateCloudOutbound = (message: unknown): CloudOutboundMessage => {
+  const jsonMessage = JSON.parse(JSON.stringify(message)) as unknown;
+  return CloudOutboundSchema.parse(jsonMessage);
+};
+
 const describeError = (error: unknown): string => {
   if (error instanceof AggregateError) {
     const details = error.errors.map(describeError).filter(Boolean).join("; ");
@@ -71,7 +76,7 @@ export class CloudClient extends EventEmitter {
   isConnected(): boolean { return this.socket?.readyState === WebSocket.OPEN; }
 
   send(message: CloudOutboundMessage): boolean {
-    const validated = CloudOutboundSchema.parse(message);
+    const validated = validateCloudOutbound(message);
     if (!this.isConnected()) return false;
     this.socket!.send(JSON.stringify(validated));
     this.events.log("cloud-out", validated as unknown as Record<string, unknown>);

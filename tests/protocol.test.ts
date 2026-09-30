@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CloudInboundSchema, CloudOutboundSchema } from "../src/core/protocol/cloud";
+import { validateCloudOutbound } from "../src/core/cloud-client";
 import { LocalInboundSchema, LocalOutboundSchema } from "../src/core/protocol/local";
 
 describe("ARC cloud protocol", () => {
@@ -21,6 +22,32 @@ describe("ARC cloud protocol", () => {
       customer: { id: "customer-1", display_name: "Player" },
     });
     expect(message.type).toBe("command");
+  });
+
+  it("omits unavailable optional snapshot sensors before validation", () => {
+    const message = validateCloudOutbound({
+      type: "snapshot-response",
+      client_id: "client-1",
+      stats: {
+        cpu_percent: 12.5,
+        cpu_temperature_c: undefined,
+        gpus: [{
+          model: "Apple GPU",
+          temperature_c: undefined,
+          memory_used_mb: undefined,
+          memory_total_mb: undefined,
+        }],
+      },
+    });
+
+    expect(message).toEqual({
+      type: "snapshot-response",
+      client_id: "client-1",
+      stats: {
+        cpu_percent: 12.5,
+        gpus: [{ model: "Apple GPU" }],
+      },
+    });
   });
 });
 
